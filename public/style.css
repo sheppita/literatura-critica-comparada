@@ -405,3 +405,109 @@ textarea {
     flex: 1 1 auto;
   }
 }
+/* ===================================================
+   BARRA DE MENU PRINCIPAL
+   =================================================== */
+
+.menu-principal {
+  width: min(100% - 40px, 1000px);
+  margin-inline: auto;
+  padding-block: 16px;
+  border-bottom: 1px solid var(--borda);
+}
+
+.menu-principal > ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  align-items: center;
+}
+
+.menu-principal a,
+.menu-principal button {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--texto);
+  text-decoration: none;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.menu-principal a:hover,
+.menu-principal button:hover {
+  background: var(--lilas-claro);
+  color: var(--verde);
+}
+
+.menu-principal a[aria-current="page"] {
+  background: var(--verde-claro);
+  color: var(--verde);
+  font-weight: 600;
+}
+
+/* --- menu suspenso de eixos --- */
+.menu-suspenso {
+  position: relative;
+}
+
+.menu-suspenso > button::after {
+  content: "";
+}
+
+.submenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 300px;
+  max-width: min(90vw, 480px);
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  background: var(--papel);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgb(58 46 42 / 12%);
+}
+
+.submenu li a {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--texto);
+}
+
+.submenu li a:hover {
+  background: var(--lilas-claro);
+  color: var(--verde);
+}
+
+@media (max-width: 600px) {
+  .menu-principal > ul {
+    gap: 4px;
+  }
+
+  .menu-principal a,
+  .menu-principal button {
+    padding: 6px 10px;
+    font-size: 0.82rem;
+  }
+
+  .submenu {
+    min-width: 240px;
+  }
+}

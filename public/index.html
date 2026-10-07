@@ -41,6 +41,23 @@
     </div>
   </header>
 
+<nav class="menu-principal" aria-label="Menu principal">
+  <ul>
+    <li><a href="/">Home</a></li>
+      <li class="menu-suspenso">
+        <button type="button" aria-haspopup="true" aria-expanded="false" id="botao-eixos">
+          Eixos ▾
+        </button>
+        <ul class="submenu" id="submenu-eixos" hidden>
+          <!-- preenchido pelo app.js -->
+        </ul>
+      </li>
+
+    <li><a href="/bibliografia.html">Bibliografia</a></li>
+        <li><button type="button" id="botao-backup">Backup</button></li>
+    </ul>
+  </nav>
+
   <main id="conteudo" class="conteudo">
     <div
       id="mensagem"

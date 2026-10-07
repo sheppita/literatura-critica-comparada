@@ -49,6 +49,7 @@ async function carregarEmenta() {
   try {
     ementaAtual = await api('/ementa');
     renderizarEmenta();
+    preencherSubmenuEixos();
   } catch (e) {
     container.innerHTML = `<p class="erro">Erro ao carregar: ${escapar(e.message)}</p>`;
   } finally {
@@ -292,4 +293,78 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('cancelar-editor').addEventListener('click', () => {
     document.getElementById('dialogo-editor').close();
   });
+
+  // --- Menu suspenso de eixos ---
+  const botaoEixos = document.getElementById('botao-eixos');
+  const submenuEixos = document.getElementById('submenu-eixos');
+  if (botaoEixos && submenuEixos) {
+    botaoEixos.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const aberto = !submenuEixos.hidden;
+      submenuEixos.hidden = aberto;
+      botaoEixos.setAttribute('aria-expanded', String(!aberto));
+    });
+    document.addEventListener('click', () => {
+      if (!submenuEixos.hidden) {
+        submenuEixos.hidden = true;
+        botaoEixos.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  // --- Botão de backup ---
+  const botaoBackup = document.getElementById('botao-backup');
+  if (botaoBackup) {
+    botaoBackup.addEventListener('click', async () => {
+      try {
+        const dados = await api('/ementa');
+        const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const data = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `ementa-backup-${data}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        mostrarMensagem('Backup baixado 🌸');
+      } catch (e) {
+        mostrarMensagem('Erro ao gerar backup: ' + e.message, 'erro');
+      }
+    });
+  }
+
+  // --- Abrir o eixo direto se a URL tiver ?eixo=N ---
+  const params = new URLSearchParams(location.search);
+  const eixoId = params.get('eixo');
+  if (eixoId) {
+    setTimeout(() => {
+      const detalhes = document.querySelectorAll('.eixo');
+      const alvo = [...detalhes].find(d => {
+        const sum = d.querySelector('summary');
+        return sum && sum.textContent.includes(`Eixo ${eixoId}`);
+      });
+      if (alvo) {
+        alvo.open = true;
+        alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 300);
+  }
+
 });
+
+// ---------- SUBMENU DE EIXOS ----------
+function preencherSubmenuEixos() {
+  const submenu = document.getElementById('submenu-eixos');
+  if (!submenu) return;
+  if (!ementaAtual.length) {
+    submenu.innerHTML = '<li><a href="#">Nenhum eixo ainda</a></li>';
+    return;
+  }
+  submenu.innerHTML = ementaAtual.map(e => `
+    <li>
+      <a href="/?eixo=${e.id}#eixo-${e.id}">
+        Eixo ${e.numero} — ${escapar(e.titulo)}
+      </a>
+    </li>
+  `).join('');
+}
