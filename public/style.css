@@ -1,13 +1,21 @@
 :root {
   color-scheme: light;
-  --fundo: #f7f6f2;
-  --papel: #ffffff;
-  --texto: #292d29;
-  --suave: #626860;
-  --borda: #dedfd7;
-  --verde: #355b49;
-  --verde-claro: #edf3ed;
-  --erro: #9a3030;
+
+  /* Paleta cozy: bege, lilás, marrom, verde escuro */
+  --fundo:        #f5efe6;   /* bege claro — fundo geral */
+  --papel:        #fbf8f3;   /* papel creme — cards */
+  --texto:        #3a2e2a;   /* marrom escuro — texto */
+  --suave:        #7a6a63;   /* marrom acinzentado — texto secundário */
+  --borda:        #e0d5c8;   /* bege mais escuro — linhas */
+
+  --verde:        #2f4a3a;   /* verde escuro — destaque principal */
+  --verde-claro:  #e6ede7;   /* verde bem claro — fundos suaves */
+
+  --lilas:        #8b7aa8;   /* lilás — destaque secundário */
+  --lilas-claro:  #ede8f2;   /* lilás claro — fundos suaves */
+
+  --marrom:       #6b4f3a;   /* marrom médio — acentos */
+  --erro:         #9a3030;
 }
 
 * {
@@ -22,8 +30,7 @@ body {
   margin: 0;
   background: var(--fundo);
   color: var(--texto);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
   line-height: 1.65;
 }
 
@@ -44,7 +51,7 @@ summary {
 }
 
 :focus-visible {
-  outline: 3px solid var(--verde);
+  outline: 3px solid var(--lilas);
   outline-offset: 4px;
 }
 
@@ -57,10 +64,13 @@ a {
 button {
   padding: 0.65rem 1rem;
   border: 1px solid var(--borda);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--papel);
   color: var(--verde);
   cursor: pointer;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.9rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 button:hover {
@@ -76,11 +86,11 @@ button:disabled {
 button[type="submit"] {
   border-color: var(--verde);
   background: var(--verde);
-  color: white;
+  color: #fbf8f3;
 }
 
 button[type="submit"]:hover {
-  background: #274737;
+  background: #253c2e;
 }
 
 .pular-conteudo {
@@ -105,17 +115,18 @@ button[type="submit"]:hover {
 }
 
 .cabecalho {
-  padding-block: 64px 32px;
+  padding-block: 72px 40px;
   border-bottom: 1px solid var(--borda);
 }
 
 .sobretitulo {
   margin: 0 0 12px;
-  color: var(--verde);
+  color: var(--lilas);
   font-size: 0.8rem;
   font-weight: 650;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 h1,
@@ -130,7 +141,8 @@ h1 {
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(2rem, 5vw, 3.3rem);
   font-weight: 400;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
+  color: var(--verde);
 }
 
 .apresentacao {
@@ -149,12 +161,12 @@ h1 {
 }
 
 .acoes-cabecalho {
-  margin-top: 24px;
+  margin-top: 28px;
 }
 
 .conteudo {
   min-height: 45vh;
-  padding-block: 32px 64px;
+  padding-block: 40px 72px;
 }
 
 .titulo-secao {
@@ -166,6 +178,7 @@ h1 {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.7rem;
   font-weight: 400;
+  color: var(--verde);
 }
 
 .titulo-secao p,
@@ -181,16 +194,19 @@ details {
 .eixo {
   margin-bottom: 16px;
   border: 1px solid var(--borda);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--papel);
+  overflow: hidden;
 }
 
 summary {
-  padding: 18px 20px;
+  padding: 20px 22px;
   cursor: pointer;
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
 }
 
 summary:hover {
@@ -199,6 +215,7 @@ summary:hover {
 
 details[open] > summary {
   border-bottom: 1px solid var(--borda);
+  background: var(--lilas-claro);
 }
 
 .corpo-eixo,
@@ -211,20 +228,24 @@ details[open] > summary {
 .tema {
   margin-block: 12px;
   border: 1px solid var(--borda);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--papel);
+  overflow: hidden;
 }
 
 .modulo > summary {
-  background: #f4f6f1;
+  background: var(--verde-claro);
+  font-size: 0.98rem;
 }
 
 .submodulo > summary {
-  background: #fafaf7;
+  background: #f2ede4;
+  font-size: 0.94rem;
 }
 
 .tema > summary {
   font-weight: 500;
+  font-size: 0.92rem;
 }
 
 .acoes-item {
@@ -233,7 +254,7 @@ details[open] > summary {
 
 .acoes-item button {
   padding: 0.45rem 0.8rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .botao-excluir {
@@ -243,13 +264,17 @@ details[open] > summary {
 .texto-conteudo {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  font-family: Georgia, "Times New Roman", serif;
 }
 
 .rotulo-conteudo {
   margin: 20px 0 6px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 650;
-  color: var(--verde);
+  color: var(--lilas);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .lista-links {
@@ -265,9 +290,10 @@ details[open] > summary {
   margin-block: 8px;
   padding: 3px 10px;
   border-radius: 20px;
-  background: var(--verde-claro);
-  color: var(--verde);
-  font-size: 0.8rem;
+  background: var(--lilas-claro);
+  color: var(--lilas);
+  font-size: 0.78rem;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 .mensagem,
@@ -275,7 +301,7 @@ details[open] > summary {
   margin: 0 0 24px;
   padding: 14px 18px;
   border: 1px solid var(--borda);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--verde-claro);
   overflow-wrap: anywhere;
 }
@@ -286,38 +312,42 @@ details[open] > summary {
 }
 
 .rodape {
-  padding-block: 24px 36px;
+  padding-block: 28px 40px;
   border-top: 1px solid var(--borda);
   color: var(--suave);
   font-size: 0.85rem;
+  font-style: italic;
 }
 
 dialog {
   width: min(640px, calc(100% - 32px));
   max-height: 85vh;
-  padding: 28px;
+  padding: 32px;
   overflow-y: auto;
   border: 1px solid var(--borda);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--papel);
   color: var(--texto);
 }
 
 dialog::backdrop {
-  background: rgb(25 35 28 / 45%);
+  background: rgb(58 46 42 / 55%);
 }
 
 dialog h2 {
   margin-top: 0;
   font-family: Georgia, "Times New Roman", serif;
   font-weight: 400;
+  color: var(--verde);
 }
 
 label {
   display: block;
   margin: 18px 0 6px;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--marrom);
 }
 
 input,
@@ -327,17 +357,19 @@ select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--borda);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--papel);
   color: var(--texto);
 }
 
 textarea {
   resize: vertical;
+  font-family: Georgia, "Times New Roman", serif;
 }
 
 .ajuda {
   font-size: 0.85rem;
+  font-style: italic;
 }
 
 .acoes-formulario {
@@ -353,20 +385,20 @@ textarea {
   }
 
   .cabecalho {
-    padding-top: 36px;
+    padding-top: 40px;
   }
 
   summary {
-    padding: 14px;
+    padding: 16px;
   }
 
   .corpo-eixo,
   .corpo-item {
-    padding: 12px;
+    padding: 14px;
   }
 
   dialog {
-    padding: 20px;
+    padding: 22px;
   }
 
   .acoes-cabecalho button {
