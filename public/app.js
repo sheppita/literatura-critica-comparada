@@ -66,7 +66,7 @@ function renderizarEmenta() {
   }
 
   container.innerHTML = ementaAtual.map(eixo => `
-    <details class="eixo">
+    <details class="eixo" open>
       <summary>Eixo ${eixo.numero} — ${escapar(eixo.titulo)}</summary>
       <div class="corpo-eixo">
         ${renderizarDisciplinas(eixo)}
@@ -88,7 +88,7 @@ function renderizarDisciplinas(eixo) {
     return '<p class="vazio">Nenhuma disciplina ainda.</p>';
   }
   return eixo.disciplinas.map(disc => `
-    <details class="modulo">
+    <details class="modulo" open>
       <summary>${escapar(disc.titulo)}</summary>
       <div class="corpo-item">
         ${disc.descricao ? `<p class="texto-conteudo">${escapar(disc.descricao)}</p>` : ''}
@@ -103,7 +103,7 @@ function renderizarDisciplinas(eixo) {
 function renderizarModulos(disc) {
   if (!disc.modulos.length) return '';
   return disc.modulos.map(mod => `
-    <details class="submodulo">
+    <details class="submodulo" open>
       <summary>${escapar(mod.titulo)}</summary>
       <div class="corpo-item">
         ${mod.descricao ? `<p class="texto-conteudo">${escapar(mod.descricao)}</p>` : ''}
