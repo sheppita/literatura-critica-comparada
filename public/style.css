@@ -517,3 +517,58 @@ textarea {
     min-width: 240px;
   }
 }
+/* ===================================================
+   BOTÕES FLUTUANTES — topo / fundo
+   =================================================== */
+
+.botoes-flutuantes {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.botoes-flutuantes.visivel {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.botoes-flutuantes button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--borda);
+  background: var(--papel);
+  color: var(--verde);
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-family: "Nunito", system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgb(59 42 36 / 15%);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.botoes-flutuantes button:hover {
+  background: var(--lilas-claro);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 600px) {
+  .botoes-flutuantes {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .botoes-flutuantes button {
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+  }
+}

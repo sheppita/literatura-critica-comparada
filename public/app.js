@@ -75,7 +75,6 @@ function renderizarEmenta() {
     </details>
   `).join('');
 
-  // Ligar eventos de "adicionar"
   container.querySelectorAll('[data-acao="adicionar"]').forEach(btn => {
     btn.addEventListener('click', abrirEditor);
   });
@@ -191,7 +190,6 @@ function abrirEditor(evento) {
   };
   document.getElementById('titulo-editor').textContent = titulos[contextoEditor.tipo] || 'Adicionar';
 
-  // Mostra campos extras pra aula
   document.getElementById('campos-tema').hidden = contextoEditor.tipo !== 'aula';
 
   dialog.showModal();
@@ -254,12 +252,85 @@ async function excluirItem(evento) {
   }
 }
 
-// ---------- EVENTOS INICIAIS ----------
+// ---------- SUBMENU DE EIXOS ----------
+function preencherSubmenuEixos() {
+  const submenu = document.getElementById('submenu-eixos');
+  if (!submenu) return;
+  if (!ementaAtual.length) {
+    submenu.innerHTML = '<li><a href="#">Nenhum eixo ainda</a></li>';
+    return;
+  }
+  submenu.innerHTML = ementaAtual.map(e => `
+    <li>
+      <a href="/?eixo=${e.id}#eixo-${e.id}">
+        Eixo ${e.numero} — ${escapar(e.titulo)}
+      </a>
+    </li>
+  `).join('');
+}
+
+// ===================================================
+// BOTÕES FLUTUANTES — auto-inicialização
+// (roda independente do DOMContentLoaded)
+// ===================================================
+(function ativarBotoesFlutuantes() {
+  function atualizarVisibilidade() {
+    const container = document.querySelector('.botoes-flutuantes');
+    if (!container) return;
+    const altura = document.documentElement.scrollHeight;
+    const janela = window.innerHeight;
+    if (altura > janela + 200) {
+      container.classList.add('visivel');
+    } else {
+      container.classList.remove('visivel');
+    }
+  }
+
+  function iniciar() {
+    const btnTopo = document.getElementById('ir-topo');
+    const btnFundo = document.getElementById('ir-fundo');
+
+    if (btnTopo) {
+      btnTopo.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (btnFundo) {
+      btnFundo.onclick = () => window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+
+    window.addEventListener('scroll', atualizarVisibilidade);
+    window.addEventListener('resize', atualizarVisibilidade);
+
+    if (window.ResizeObserver) {
+      new ResizeObserver(atualizarVisibilidade).observe(document.body);
+    }
+
+    document.addEventListener('toggle', atualizarVisibilidade, true);
+
+    // Roda várias vezes pra garantir
+    atualizarVisibilidade();
+    [100, 300, 600, 1000, 2000, 3000].forEach(ms =>
+      setTimeout(atualizarVisibilidade, ms)
+    );
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
+})();
+
+// ===================================================
+// EVENTOS INICIAIS
+// ===================================================
 document.addEventListener('DOMContentLoaded', async () => {
   await verificarSessao();
   await carregarEmenta();
 
-  // Login
+  // --- Login ---
   const dlgLogin = document.getElementById('dialogo-login');
   document.getElementById('abrir-login').addEventListener('click', () => dlgLogin.showModal());
   document.getElementById('cancelar-login').addEventListener('click', () => dlgLogin.close());
@@ -280,7 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Logout
+  // --- Logout ---
   document.getElementById('sair').addEventListener('click', async () => {
     await api('/logout', { method: 'POST' });
     estaLogada = false;
@@ -288,7 +359,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await carregarEmenta();
   });
 
-  // Editor
+  // --- Editor ---
   document.getElementById('form-editor').addEventListener('submit', salvarEditor);
   document.getElementById('cancelar-editor').addEventListener('click', () => {
     document.getElementById('dialogo-editor').close();
@@ -349,22 +420,4 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }, 300);
   }
-
 });
-
-// ---------- SUBMENU DE EIXOS ----------
-function preencherSubmenuEixos() {
-  const submenu = document.getElementById('submenu-eixos');
-  if (!submenu) return;
-  if (!ementaAtual.length) {
-    submenu.innerHTML = '<li><a href="#">Nenhum eixo ainda</a></li>';
-    return;
-  }
-  submenu.innerHTML = ementaAtual.map(e => `
-    <li>
-      <a href="/?eixo=${e.id}#eixo-${e.id}">
-        Eixo ${e.numero} — ${escapar(e.titulo)}
-      </a>
-    </li>
-  `).join('');
-}
