@@ -1,21 +1,21 @@
 :root {
   color-scheme: light;
 
-  /* Paleta cozy: bege, lilás, marrom, verde escuro */
-  --fundo:        #f5efe6;   /* bege claro — fundo geral */
-  --papel:        #fbf8f3;   /* papel creme — cards */
-  --texto:        #3a2e2a;   /* marrom escuro — texto */
-  --suave:        #7a6a63;   /* marrom acinzentado — texto secundário */
-  --borda:        #e0d5c8;   /* bege mais escuro — linhas */
+  /* Paleta cozy: Jardim Secreto — versão quente */
+  --fundo:        #f5ead9;   /* bege-dourado quente — fundo geral */
+  --papel:        #fdf6e9;   /* papel creme quente — cards */
+  --texto:        #3b2a24;   /* marrom-ameixa escuro — texto */
+  --suave:        #7d6255;   /* marrom acinzentado quente — texto secundário */
+  --borda:        #e8d5bc;   /* bege-dourado mais escuro — linhas */
 
-  --verde:        #2f4a3a;   /* verde escuro — destaque principal */
-  --verde-claro:  #e6ede7;   /* verde bem claro — fundos suaves */
+  --verde:        #5f7355;   /* verde-musgo — destaque principal */
+  --verde-claro:  #e9efdf;   /* verde-musgo bem claro — fundos suaves */
 
-  --lilas:        #8b7aa8;   /* lilás — destaque secundário */
-  --lilas-claro:  #ede8f2;   /* lilás claro — fundos suaves */
+  --lilas:        #8a5a7a;   /* ameixa-lilás — destaque secundário */
+  --lilas-claro:  #f2e3ec;   /* lilás quente claro — fundos suaves */
 
-  --marrom:       #6b4f3a;   /* marrom médio — acentos */
-  --erro:         #9a3030;
+  --marrom:       #8b5e3c;   /* marrom quente — acentos */
+  --erro:         #a13a3a;
 }
 
 * {
@@ -30,7 +30,7 @@ body {
   margin: 0;
   background: var(--fundo);
   color: var(--texto);
-  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
   line-height: 1.65;
 }
 
@@ -68,7 +68,7 @@ button {
   background: var(--papel);
   color: var(--verde);
   cursor: pointer;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 0.9rem;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
@@ -90,7 +90,8 @@ button[type="submit"] {
 }
 
 button[type="submit"]:hover {
-  background: #253c2e;
+  background: #4b5d43
+;
 }
 
 .pular-conteudo {
@@ -117,6 +118,7 @@ button[type="submit"]:hover {
 .cabecalho {
   padding-block: 72px 40px;
   border-bottom: 1px solid var(--borda);
+  text-align: center;
 }
 
 .sobretitulo {
@@ -126,7 +128,7 @@ button[type="submit"]:hover {
   font-weight: 650;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 h1,
@@ -138,7 +140,7 @@ h3 {
 
 h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Fraunces", Georgia, serif;
   font-size: clamp(2rem, 5vw, 3.3rem);
   font-weight: 400;
   letter-spacing: -0.02em;
@@ -147,7 +149,7 @@ h1 {
 
 .apresentacao {
   max-width: 650px;
-  margin-top: 18px;
+  margin: 18px auto 0;
   color: var(--suave);
 }
 
@@ -162,6 +164,7 @@ h1 {
 
 .acoes-cabecalho {
   margin-top: 28px;
+  justify-content: center;
 }
 
 .conteudo {
@@ -175,7 +178,7 @@ h1 {
 
 .titulo-secao h2 {
   margin-bottom: 8px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Fraunces", Georgia, serif;
   font-size: 1.7rem;
   font-weight: 400;
   color: var(--verde);
@@ -205,7 +208,7 @@ summary {
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Fraunces", Georgia, serif;
   font-size: 1.05rem;
 }
 
@@ -264,7 +267,7 @@ details[open] > summary {
 .texto-conteudo {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Fraunces", Georgia, serif;
 }
 
 .rotulo-conteudo {
@@ -272,7 +275,7 @@ details[open] > summary {
   font-size: 0.85rem;
   font-weight: 650;
   color: var(--lilas);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -293,7 +296,7 @@ details[open] > summary {
   background: var(--lilas-claro);
   color: var(--lilas);
   font-size: 0.78rem;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 .mensagem,
@@ -336,7 +339,7 @@ dialog::backdrop {
 
 dialog h2 {
   margin-top: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Fraunces", Georgia, serif;
   font-weight: 400;
   color: var(--verde);
 }
@@ -346,7 +349,7 @@ label {
   margin: 18px 0 6px;
   font-weight: 600;
   font-size: 0.9rem;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--marrom);
 }
 
@@ -410,20 +413,25 @@ textarea {
    =================================================== */
 
 .menu-principal {
-  width: min(100% - 40px, 1000px);
-  margin-inline: auto;
-  padding-block: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  width: 100%;
   border-bottom: 1px solid var(--borda);
+  background: var(--fundo);
+  backdrop-filter: blur(6px);
 }
 
 .menu-principal > ul {
+  width: min(100% - 40px, 1000px);
+  margin-inline: auto;
+  padding-block: 14px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0;
-  padding: 0;
   list-style: none;
   align-items: center;
+  justify-content: center;
 }
 
 .menu-principal a,
@@ -435,9 +443,7 @@ textarea {
   background: transparent;
   color: var(--texto);
   text-decoration: none;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;  font-weight: 500;
   letter-spacing: 0.02em;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -468,7 +474,7 @@ textarea {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 20;
+  z-index: 60;
   min-width: 300px;
   max-width: min(90vw, 480px);
   max-height: 60vh;
