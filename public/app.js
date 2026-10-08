@@ -1,6 +1,6 @@
 // ===================================================
-// APP.JS — Cérebro do frontend
-// Conversa com a API em /api/* e monta a interface
+// APP.JS — Home
+// Lista os 9 eixos como cartões clicáveis
 // ===================================================
 
 const API = '/api';
@@ -44,11 +44,11 @@ function escapar(texto) {
 async function carregarEmenta() {
   const container = document.getElementById('eixos');
   container.setAttribute('aria-busy', 'true');
-  container.innerHTML = '<p>Carregando a ementa…</p>';
+  container.innerHTML = '<p>Carregando os eixos…</p>';
 
   try {
     ementaAtual = await api('/ementa');
-    renderizarEmenta();
+    renderizarCartoes();
     preencherSubmenuEixos();
   } catch (e) {
     container.innerHTML = `<p class="erro">Erro ao carregar: ${escapar(e.message)}</p>`;
@@ -57,199 +57,30 @@ async function carregarEmenta() {
   }
 }
 
-// ---------- RENDERIZAR ÁRVORE ----------
-function renderizarEmenta() {
+// ---------- RENDERIZAR CARTÕES ----------
+function renderizarCartoes() {
   const container = document.getElementById('eixos');
   if (!ementaAtual.length) {
     container.innerHTML = '<p class="vazio">Nenhum eixo cadastrado ainda.</p>';
     return;
   }
 
-  container.innerHTML = ementaAtual.map(eixo => `
-    <details class="eixo" open>
-      <summary>Eixo ${eixo.numero} — ${escapar(eixo.titulo)}</summary>
-      <div class="corpo-eixo">
-        ${renderizarDisciplinas(eixo)}
-        ${estaLogada ? botaoAdicionar('disciplina', eixo.id, 'Adicionar disciplina') : ''}
-      </div>
-    </details>
-  `).join('');
+  container.innerHTML = ementaAtual.map(eixo => {
+    const totalDisc = eixo.disciplinas.length;
+    const textoDisc = totalDisc === 0
+      ? 'Nenhuma disciplina ainda'
+      : totalDisc === 1
+        ? '1 disciplina'
+        : `${totalDisc} disciplinas`;
 
-  container.querySelectorAll('[data-acao="adicionar"]').forEach(btn => {
-    btn.addEventListener('click', abrirEditor);
-  });
-  container.querySelectorAll('[data-acao="excluir"]').forEach(btn => {
-    btn.addEventListener('click', excluirItem);
-  });
-}
-
-function renderizarDisciplinas(eixo) {
-  if (!eixo.disciplinas.length) {
-    return '<p class="vazio">Nenhuma disciplina ainda.</p>';
-  }
-  return eixo.disciplinas.map(disc => `
-    <details class="modulo" open>
-      <summary>${escapar(disc.titulo)}</summary>
-      <div class="corpo-item">
-        ${disc.descricao ? `<p class="texto-conteudo">${escapar(disc.descricao)}</p>` : ''}
-        ${renderizarModulos(disc)}
-        ${estaLogada ? botaoAdicionar('modulo', disc.id, 'Adicionar módulo') : ''}
-        ${estaLogada ? botaoExcluir('disciplinas', disc.id) : ''}
-      </div>
-    </details>
-  `).join('');
-}
-
-function renderizarModulos(disc) {
-  if (!disc.modulos.length) return '';
-  return disc.modulos.map(mod => `
-    <details class="submodulo" open>
-      <summary>${escapar(mod.titulo)}</summary>
-      <div class="corpo-item">
-        ${mod.descricao ? `<p class="texto-conteudo">${escapar(mod.descricao)}</p>` : ''}
-        ${renderizarTemas(mod)}
-        ${estaLogada ? botaoAdicionar('tema', mod.id, 'Adicionar tema') : ''}
-        ${estaLogada ? botaoExcluir('modulos', mod.id) : ''}
-      </div>
-    </details>
-  `).join('');
-}
-
-function renderizarTemas(mod) {
-  if (!mod.temas.length) return '';
-  return mod.temas.map(tema => `
-    <details class="tema">
-      <summary>${escapar(tema.titulo)}</summary>
-      <div class="corpo-item">
-        ${tema.descricao ? `<p class="texto-conteudo">${escapar(tema.descricao)}</p>` : ''}
-        ${renderizarAulas(tema)}
-        ${estaLogada ? botaoAdicionar('aula', tema.id, 'Adicionar aula') : ''}
-        ${estaLogada ? botaoExcluir('temas', tema.id) : ''}
-      </div>
-    </details>
-  `).join('');
-}
-
-function renderizarAulas(tema) {
-  if (!tema.aulas.length) return '';
-  return tema.aulas.map(aula => `
-    <article class="tema">
-      <div class="corpo-item">
-        <strong>${escapar(aula.titulo)}</strong>
-        ${aula.conteudo ? `<p class="texto-conteudo">${escapar(aula.conteudo)}</p>` : ''}
-        ${aula.links ? `<p class="rotulo-conteudo">Links</p><p class="texto-conteudo">${escapar(aula.links)}</p>` : ''}
-        ${estaLogada ? botaoExcluir('aulas', aula.id) : ''}
-      </div>
-    </article>
-  `).join('');
-}
-
-function botaoAdicionar(tipo, paiId, rotulo) {
-  return `<div class="acoes-item">
-    <button data-acao="adicionar" data-tipo="${tipo}" data-pai="${paiId}">+ ${rotulo}</button>
-  </div>`;
-}
-
-function botaoExcluir(recurso, id) {
-  return `<div class="acoes-item">
-    <button class="botao-excluir" data-acao="excluir" data-recurso="${recurso}" data-id="${id}">Excluir</button>
-  </div>`;
-}
-
-// ---------- LOGIN ----------
-async function verificarSessao() {
-  try {
-    const r = await api('/sessao');
-    estaLogada = r.logada;
-    atualizarCabecalho();
-  } catch {}
-}
-
-function atualizarCabecalho() {
-  document.getElementById('abrir-login').hidden = estaLogada;
-  document.getElementById('sair').hidden = !estaLogada;
-  document.getElementById('aviso-edicao').hidden = !estaLogada;
-}
-
-// ---------- EDITOR ----------
-let contextoEditor = null;
-
-function abrirEditor(evento) {
-  const btn = evento.currentTarget;
-  contextoEditor = { tipo: btn.dataset.tipo, pai: btn.dataset.pai };
-
-  const dialog = document.getElementById('dialogo-editor');
-  const form = document.getElementById('form-editor');
-  form.reset();
-
-  const titulos = {
-    disciplina: 'Nova disciplina',
-    modulo: 'Novo módulo',
-    tema: 'Novo tema',
-    aula: 'Nova aula'
-  };
-  document.getElementById('titulo-editor').textContent = titulos[contextoEditor.tipo] || 'Adicionar';
-
-  document.getElementById('campos-tema').hidden = contextoEditor.tipo !== 'aula';
-
-  dialog.showModal();
-}
-
-async function salvarEditor(evento) {
-  evento.preventDefault();
-  if (!contextoEditor) return;
-
-  const form = evento.target;
-  const dados = {
-    titulo: form.titulo.value.trim(),
-    descricao: form.descricao?.value.trim() || null,
-    ordem: Number(form.ordem.value) || 0
-  };
-
-  const rotas = {
-    disciplina: '/disciplinas',
-    modulo: '/modulos',
-    tema: '/temas',
-    aula: '/aulas'
-  };
-  const chaves = {
-    disciplina: 'eixo_id',
-    modulo: 'disciplina_id',
-    tema: 'modulo_id',
-    aula: 'tema_id'
-  };
-
-  dados[chaves[contextoEditor.tipo]] = Number(contextoEditor.pai);
-
-  if (contextoEditor.tipo === 'aula') {
-    dados.conteudo = document.getElementById('campo-anotacoes')?.value.trim() || dados.descricao;
-    dados.links = document.getElementById('campo-links')?.value.trim() || null;
-  }
-
-  try {
-    await api(rotas[contextoEditor.tipo], { method: 'POST', body: dados });
-    document.getElementById('dialogo-editor').close();
-    mostrarMensagem('Salvo com sucesso 🌸');
-    await carregarEmenta();
-  } catch (e) {
-    document.getElementById('erro-editor').textContent = e.message;
-    document.getElementById('erro-editor').hidden = false;
-  }
-}
-
-// ---------- EXCLUIR ----------
-async function excluirItem(evento) {
-  const btn = evento.currentTarget;
-  const { recurso, id } = btn.dataset;
-  if (!confirm('Tem certeza que quer excluir? Isso apaga tudo que está dentro também.')) return;
-
-  try {
-    await api(`/${recurso}/${id}`, { method: 'DELETE' });
-    mostrarMensagem('Excluído.');
-    await carregarEmenta();
-  } catch (e) {
-    mostrarMensagem(e.message, 'erro');
-  }
+    return `
+      <a class="cartao-eixo" href="/eixo.html?numero=${eixo.numero}">
+        <span class="cartao-numero">Eixo ${eixo.numero}</span>
+        <h3 class="cartao-titulo">${escapar(eixo.titulo)}</h3>
+        <span class="cartao-contagem">${textoDisc}</span>
+      </a>
+    `;
+  }).join('');
 }
 
 // ---------- SUBMENU DE EIXOS ----------
@@ -262,16 +93,26 @@ function preencherSubmenuEixos() {
   }
   submenu.innerHTML = ementaAtual.map(e => `
     <li>
-      <a href="/?eixo=${e.id}#eixo-${e.id}">
+      <a href="/eixo.html?numero=${e.numero}">
         Eixo ${e.numero} — ${escapar(e.titulo)}
       </a>
     </li>
   `).join('');
 }
 
+// ---------- LOGIN ----------
+async function verificarSessao() {
+  try {
+    const r = await api('/sessao');
+    estaLogada = r.logada;
+    document.getElementById('abrir-login').hidden = estaLogada;
+    document.getElementById('sair').hidden = !estaLogada;
+    document.getElementById('aviso-edicao').hidden = !estaLogada;
+  } catch {}
+}
+
 // ===================================================
 // BOTÕES FLUTUANTES — auto-inicialização
-// (roda independente do DOMContentLoaded)
 // ===================================================
 (function ativarBotoesFlutuantes() {
   function atualizarVisibilidade() {
@@ -306,10 +147,8 @@ function preencherSubmenuEixos() {
     if (window.ResizeObserver) {
       new ResizeObserver(atualizarVisibilidade).observe(document.body);
     }
-
     document.addEventListener('toggle', atualizarVisibilidade, true);
 
-    // Roda várias vezes pra garantir
     atualizarVisibilidade();
     [100, 300, 600, 1000, 2000, 3000].forEach(ms =>
       setTimeout(atualizarVisibilidade, ms)
@@ -340,9 +179,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       await api('/login', { method: 'POST', body: { senha } });
       estaLogada = true;
-      atualizarCabecalho();
+      await verificarSessao();
       dlgLogin.close();
-      await carregarEmenta();
       mostrarMensagem('Bem-vinda de volta 🌿');
     } catch (err) {
       const el = document.getElementById('erro-login');
@@ -355,14 +193,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sair').addEventListener('click', async () => {
     await api('/logout', { method: 'POST' });
     estaLogada = false;
-    atualizarCabecalho();
-    await carregarEmenta();
-  });
-
-  // --- Editor ---
-  document.getElementById('form-editor').addEventListener('submit', salvarEditor);
-  document.getElementById('cancelar-editor').addEventListener('click', () => {
-    document.getElementById('dialogo-editor').close();
+    await verificarSessao();
+    mostrarMensagem('Sessão encerrada.');
   });
 
   // --- Menu suspenso de eixos ---
@@ -402,22 +234,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         mostrarMensagem('Erro ao gerar backup: ' + e.message, 'erro');
       }
     });
-  }
-
-  // --- Abrir o eixo direto se a URL tiver ?eixo=N ---
-  const params = new URLSearchParams(location.search);
-  const eixoId = params.get('eixo');
-  if (eixoId) {
-    setTimeout(() => {
-      const detalhes = document.querySelectorAll('.eixo');
-      const alvo = [...detalhes].find(d => {
-        const sum = d.querySelector('summary');
-        return sum && sum.textContent.includes(`Eixo ${eixoId}`);
-      });
-      if (alvo) {
-        alvo.open = true;
-        alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 300);
   }
 });

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Ementa de estudos em Literatura Crítica e Comparada.">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Módulo — Literatura Crítica e Comparada</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/style.css">
+  <script src="/modulo.js" defer></script>
+</head>
+
+<body>
+  <a class="pular-conteudo" href="#conteudo">Ir para o conteúdo</a>
+
+  <header class="cabecalho">
+    <div>
+      <p class="sobretitulo" id="breadcrumb-eixo">Carregando…</p>
+      <h1 id="titulo-modulo">Carregando…</h1>
+      <p class="apresentacao" id="breadcrumb-links">
+        <a href="/" class="link-voltar">← Home</a>
+        <span id="link-eixo-container" hidden>
+          · <a href="#" class="link-voltar" id="link-eixo">← Eixo</a>
+        </span>
+        <span id="link-disciplina-container" hidden>
+          · <a href="#" class="link-voltar" id="link-disciplina">← Disciplina</a>
+        </span>
+      </p>
+    </div>
+
+    <div class="acoes-cabecalho">
+      <button id="abrir-login" type="button">Entrar para editar</button>
+      <button id="sair" type="button" hidden>Sair da edição</button>
+    </div>
+  </header>
+
+  <nav class="menu-principal" aria-label="Menu principal">
+    <ul>
+      <li><a href="/">Home</a></li>
+
+      <li class="menu-suspenso">
+        <button type="button" aria-haspopup="true" aria-expanded="false" id="botao-eixos">
+          Eixos ▾
+        </button>
+        <ul class="submenu" id="submenu-eixos" hidden></ul>
+      </li>
+
+      <li><a href="/bibliografia.html">Bibliografia</a></li>
+
+      <li><button type="button" id="botao-backup">Backup</button></li>
+    </ul>
+  </nav>
+
+  <main id="conteudo" class="conteudo">
+    <div id="mensagem" class="mensagem" role="status" aria-live="polite" hidden></div>
+
+    <p id="aviso-edicao" class="aviso" hidden>
+      Você está na área de edição.
+      Os conteúdos cadastrados poderão ser lidos publicamente.
+    </p>
+
+    <section aria-labelledby="titulo-temas">
+      <div class="titulo-secao">
+        <h2 id="titulo-temas">Temas</h2>
+        <p>Escolha um tema para ver as aulas.</p>
+      </div>
+
+      <div id="temas" class="grade-eixos" aria-busy="true">
+        <p>Carregando…</p>
+      </div>
+
+      <div class="acoes-item" id="acoes-modulo" hidden>
+        <button data-acao="adicionar" data-tipo="tema" id="btn-add-tema">+ Adicionar tema</button>
+        <button class="botao-excluir" id="btn-excluir-modulo">Excluir módulo</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <p>Uma ementa viva: leitura, investigação e construção contínua.</p>
+    <p>
+      <a href="/" class="link-voltar">← Home</a>
+      <span id="link-eixo-rodape-container" hidden>
+        · <a href="#" class="link-voltar" id="link-eixo-rodape">← Eixo</a>
+      </span>
+      <span id="link-disciplina-rodape-container" hidden>
+        · <a href="#" class="link-voltar" id="link-disciplina-rodape">← Disciplina</a>
+      </span>
+    </p>
+  </footer>
+
+  <dialog id="dialogo-login" aria-labelledby="titulo-login">
+    <form id="form-login">
+      <h2 id="titulo-login">Entrar para editar</h2>
+      <p>A leitura é pública. A senha permite modificar a ementa.</p>
+
+      <label for="senha">Sua senha de edição</label>
+      <input id="senha" name="senha" type="password" autocomplete="current-password" maxlength="1024" required>
+
+      <p id="erro-login" class="erro" role="alert" hidden></p>
+
+      <div class="acoes-formulario">
+        <button id="cancelar-login" type="button">Cancelar</button>
+        <button id="confirmar-login" type="submit">Entrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialogo-editor" aria-labelledby="titulo-editor">
+    <form id="form-editor">
+      <h2 id="titulo-editor">Adicionar tema</h2>
+
+      <label for="campo-titulo">Título</label>
+      <input id="campo-titulo" name="titulo" type="text" maxlength="500" required>
+
+      <label for="campo-descricao">Descrição ou ementa</label>
+      <textarea id="campo-descricao" name="descricao" rows="5" maxlength="50000"></textarea>
+
+      <label for="campo-ordem">Ordem de apresentação</label>
+      <input id="campo-ordem" name="ordem" type="number" min="0" max="1000000" step="1" value="0" required>
+
+      <p class="ajuda">Apenas o título é obrigatório.</p>
+
+      <p id="erro-editor" class="erro" role="alert" hidden></p>
+
+      <div class="acoes-formulario">
+        <button id="cancelar-editor" type="button">Cancelar</button>
+        <button id="salvar-editor" type="submit">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="botoes-flutuantes" aria-label="Atalhos de navegação">
+    <button id="ir-topo" type="button" title="Ir para o topo" aria-label="Ir para o topo">↑</button>
+    <button id="ir-fundo" type="button" title="Ir para o fundo" aria-label="Ir para o fundo">↓</button>
+  </div>
+</body>
+</html>

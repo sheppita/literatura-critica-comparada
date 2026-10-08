@@ -68,6 +68,153 @@ router.get('/ementa', async (req, res) => {
   }
 });
 
+// ---------- ITENS INDIVIDUAIS (públicos) ----------
+
+// Disciplina + módulos + temas + aulas
+router.get('/disciplinas/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const disc = (await pool.query(
+      'SELECT * FROM disciplinas WHERE id = $1', [id]
+    )).rows[0];
+
+    if (!disc) return res.status(404).json({ erro: 'Disciplina não encontrada.' });
+
+    const eixo = (await pool.query(
+      'SELECT numero, titulo FROM eixos WHERE id = $1', [disc.eixo_id]
+    )).rows[0];
+
+    const modulos = (await pool.query(
+      'SELECT * FROM modulos WHERE disciplina_id = $1 ORDER BY ordem, id', [id]
+    )).rows;
+
+    const modulosIds = modulos.map(m => m.id);
+
+    let temas = [], aulas = [];
+    if (modulosIds.length) {
+      temas = (await pool.query(
+        'SELECT * FROM temas WHERE modulo_id = ANY($1) ORDER BY ordem, id', [modulosIds]
+      )).rows;
+
+      const temasIds = temas.map(t => t.id);
+      if (temasIds.length) {
+        aulas = (await pool.query(
+          'SELECT * FROM aulas WHERE tema_id = ANY($1) ORDER BY ordem, id', [temasIds]
+        )).rows;
+      }
+    }
+
+    const arvore = {
+      ...disc,
+      eixo,
+      modulos: modulos.map(m => ({
+        ...m,
+        temas: temas
+          .filter(t => t.modulo_id === m.id)
+          .map(t => ({
+            ...t,
+            aulas: aulas.filter(a => a.tema_id === t.id)
+          }))
+      }))
+    };
+
+    res.json(arvore);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao carregar disciplina.' });
+  }
+});
+
+// Módulo + temas + aulas
+router.get('/modulos/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const mod = (await pool.query(
+      'SELECT * FROM modulos WHERE id = $1', [id]
+    )).rows[0];
+
+    if (!mod) return res.status(404).json({ erro: 'Módulo não encontrado.' });
+
+    const disc = (await pool.query(
+      'SELECT * FROM disciplinas WHERE id = $1', [mod.disciplina_id]
+    )).rows[0];
+
+    const eixo = disc ? (await pool.query(
+      'SELECT numero, titulo FROM eixos WHERE id = $1', [disc.eixo_id]
+    )).rows[0] : null;
+
+    const temas = (await pool.query(
+      'SELECT * FROM temas WHERE modulo_id = $1 ORDER BY ordem, id', [id]
+    )).rows;
+
+    const temasIds = temas.map(t => t.id);
+    let aulas = [];
+    if (temasIds.length) {
+      aulas = (await pool.query(
+        'SELECT * FROM aulas WHERE tema_id = ANY($1) ORDER BY ordem, id', [temasIds]
+      )).rows;
+    }
+
+    const arvore = {
+      ...mod,
+      disciplina: disc ? { id: disc.id, titulo: disc.titulo } : null,
+      eixo,
+      temas: temas.map(t => ({
+        ...t,
+        aulas: aulas.filter(a => a.tema_id === t.id)
+      }))
+    };
+
+    res.json(arvore);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao carregar módulo.' });
+  }
+});
+
+// Tema + aulas
+router.get('/temas/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const tema = (await pool.query(
+      'SELECT * FROM temas WHERE id = $1', [id]
+    )).rows[0];
+
+    if (!tema) return res.status(404).json({ erro: 'Tema não encontrado.' });
+
+    const mod = (await pool.query(
+      'SELECT * FROM modulos WHERE id = $1', [tema.modulo_id]
+    )).rows[0];
+
+    const disc = mod ? (await pool.query(
+      'SELECT * FROM disciplinas WHERE id = $1', [mod.disciplina_id]
+    )).rows[0] : null;
+
+    const eixo = disc ? (await pool.query(
+      'SELECT numero, titulo FROM eixos WHERE id = $1', [disc.eixo_id]
+    )).rows[0] : null;
+
+    const aulas = (await pool.query(
+      'SELECT * FROM aulas WHERE tema_id = $1 ORDER BY ordem, id', [id]
+    )).rows;
+
+    res.json({
+      ...tema,
+      modulo: mod ? { id: mod.id, titulo: mod.titulo } : null,
+      disciplina: disc ? { id: disc.id, titulo: disc.titulo } : null,
+      eixo,
+      aulas
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao carregar tema.' });
+  }
+});
+
+
 // ---------- BUSCA (pública) ----------
 router.get('/buscar', async (req, res) => {
   const q = (req.query.q || '').trim();
