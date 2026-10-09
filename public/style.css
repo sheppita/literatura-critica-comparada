@@ -667,3 +667,124 @@ textarea {
   display: inline-block;
   margin-top: 8px;
 }
+
+/* ===================================================
+   CARDS POR NÍVEL — cores das faixas
+   =================================================== */
+
+/* Disciplina — verde-musgo */
+.cartao-disciplina::before {
+  background: var(--verde);
+}
+
+.cartao-disciplina:hover,
+.cartao-disciplina:focus-visible {
+  border-color: var(--verde);
+  background: var(--verde-claro);
+}
+
+.cartao-disciplina .cartao-numero {
+  color: var(--verde);
+}
+
+/* Módulo — marrom */
+.cartao-modulo::before {
+  background: var(--marrom);
+}
+
+.cartao-modulo:hover,
+.cartao-modulo:focus-visible {
+  border-color: var(--marrom);
+  background: #f3ece3;
+}
+
+.cartao-modulo .cartao-numero {
+  color: var(--marrom);
+}
+
+/* Tema — terracota */
+.cartao-tema::before {
+  background: #b8734a;
+}
+
+.cartao-tema:hover,
+.cartao-tema:focus-visible {
+  border-color: #b8734a;
+  background: #f5e8de;
+}
+
+.cartao-tema .cartao-numero {
+  color: #b8734a;
+}
+
+/* Aula — rosa antigo */
+.cartao-aula::before {
+  background: #c48b9f;
+}
+
+.cartao-aula {
+  cursor: default;
+}
+
+.cartao-aula:hover,
+.cartao-aula:focus-visible {
+  border-color: #c48b9f;
+  background: #f7ecef;
+}
+
+.cartao-aula .cartao-numero {
+  color: #c48b9f;
+}
+
+/* ===================================================
+   AJUSTES DO CARD DE AULA
+   =================================================== */
+
+.cartao-preview {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--suave);
+  line-height: 1.5;
+}
+
+.cartao-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borda);
+}
+
+.cartao-acoes button {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  font-family: "Nunito", system-ui, sans-serif;
+}
+
+/* ===================================================
+   BOTÃO ADICIONAR DISCIPLINA (na página do eixo)
+   =================================================== */
+
+.botao-adicionar-grande {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin: 24px auto 0;
+  padding: 14px 20px;
+  border: 2px dashed var(--borda);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--lilas);
+  font-family: "Nunito", system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.botao-adicionar-grande:hover {
+  background: var(--lilas-claro);
+  border-color: var(--lilas);
+  color: var(--verde);
+}

@@ -74,6 +74,11 @@
       <div id="disciplinas" aria-busy="true">
         <p>Carregando…</p>
       </div>
+
+        <button id="btn-add-disciplina" class="botao-adicionar-grande" type="button" hidden>
+        + Adicionar disciplina
+      </button>
+
     </section>
   </main>
 
@@ -95,6 +100,30 @@
       <div class="acoes-formulario">
         <button id="cancelar-login" type="button">Cancelar</button>
         <button id="confirmar-login" type="submit">Entrar</button>
+      </div>
+    </form>
+  </dialog>
+
+<dialog id="dialogo-editor" aria-labelledby="titulo-editor">
+    <form id="form-editor">
+      <h2 id="titulo-editor">Adicionar disciplina</h2>
+
+      <label for="campo-titulo">Título</label>
+      <input id="campo-titulo" name="titulo" type="text" maxlength="500" required>
+
+      <label for="campo-descricao">Descrição ou ementa</label>
+      <textarea id="campo-descricao" name="descricao" rows="5" maxlength="50000"></textarea>
+
+      <label for="campo-ordem">Ordem de apresentação</label>
+      <input id="campo-ordem" name="ordem" type="number" min="0" max="1000000" step="1" value="0" required>
+
+      <p class="ajuda">Apenas o título é obrigatório.</p>
+
+      <p id="erro-editor" class="erro" role="alert" hidden></p>
+
+      <div class="acoes-formulario">
+        <button id="cancelar-editor" type="button">Cancelar</button>
+        <button id="salvar-editor" type="submit">Salvar</button>
       </div>
     </form>
   </dialog>
