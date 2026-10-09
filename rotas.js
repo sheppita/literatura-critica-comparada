@@ -214,31 +214,43 @@ router.get('/temas/:id', async (req, res) => {
   }
 });
 
-
 // ---------- BUSCA (pública) ----------
 router.get('/buscar', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
 
   const termo = `%${q}%`;
-  const sql = `
-    SELECT 'disciplina' AS tipo, id, titulo FROM disciplinas WHERE titulo ILIKE $1
-    UNION ALL
-    SELECT 'modulo',     id, titulo FROM modulos     WHERE titulo ILIKE $1
-    UNION ALL
-    SELECT 'tema',       id, titulo FROM temas       WHERE titulo ILIKE $1
-    UNION ALL
-    SELECT 'aula',       id, titulo FROM aulas       WHERE titulo ILIKE $1 OR conteudo ILIKE $1
-    LIMIT 50;
-  `;
-  const { rows } = await pool.query(sql, [termo]);
-  res.json(rows);
+  try {
+    const sql = `
+      SELECT 'eixo' AS tipo, id, titulo, NULL AS url, numero AS extra
+        FROM eixos WHERE titulo ILIKE $1
+      UNION ALL
+      SELECT 'disciplina', id, titulo, '/disciplina.html?id=' || id, NULL
+        FROM disciplinas WHERE titulo ILIKE $1 OR descricao ILIKE $1
+      UNION ALL
+      SELECT 'modulo', id, titulo, '/modulo.html?id=' || id, NULL
+        FROM modulos WHERE titulo ILIKE $1 OR descricao ILIKE $1
+      UNION ALL
+      SELECT 'tema', id, titulo, '/tema.html?id=' || id, NULL
+        FROM temas WHERE titulo ILIKE $1 OR descricao ILIKE $1
+      UNION ALL
+      SELECT 'aula', id, titulo, NULL, NULL
+        FROM aulas WHERE titulo ILIKE $1 OR conteudo ILIKE $1
+      LIMIT 50;
+    `;
+    const { rows } = await pool.query(sql, [termo]);
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro na busca.' });
+  }
 });
 
 // ===================================================
 // CADASTRO (exige login)
 // ===================================================
 
+// ---- DISCIPLINAS ----
 router.post('/disciplinas', exigirLogin, async (req, res) => {
   const { eixo_id, titulo, descricao, ordem } = req.body;
   const { rows } = await pool.query(
@@ -248,11 +260,22 @@ router.post('/disciplinas', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
+router.put('/disciplinas/:id', exigirLogin, async (req, res) => {
+  const { titulo, descricao, ordem } = req.body;
+  const { rows } = await pool.query(
+    'UPDATE disciplinas SET titulo=$1, descricao=$2, ordem=$3 WHERE id=$4 RETURNING *',
+    [titulo, descricao, ordem || 0, req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ erro: 'Disciplina não encontrada.' });
+  res.json(rows[0]);
+});
+
 router.delete('/disciplinas/:id', exigirLogin, async (req, res) => {
   await pool.query('DELETE FROM disciplinas WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
+// ---- MÓDULOS ----
 router.post('/modulos', exigirLogin, async (req, res) => {
   const { disciplina_id, titulo, descricao, ordem } = req.body;
   const { rows } = await pool.query(
@@ -262,11 +285,22 @@ router.post('/modulos', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
+router.put('/modulos/:id', exigirLogin, async (req, res) => {
+  const { titulo, descricao, ordem } = req.body;
+  const { rows } = await pool.query(
+    'UPDATE modulos SET titulo=$1, descricao=$2, ordem=$3 WHERE id=$4 RETURNING *',
+    [titulo, descricao, ordem || 0, req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ erro: 'Módulo não encontrado.' });
+  res.json(rows[0]);
+});
+
 router.delete('/modulos/:id', exigirLogin, async (req, res) => {
   await pool.query('DELETE FROM modulos WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
+// ---- TEMAS ----
 router.post('/temas', exigirLogin, async (req, res) => {
   const { modulo_id, titulo, descricao, ordem } = req.body;
   const { rows } = await pool.query(
@@ -276,11 +310,22 @@ router.post('/temas', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
+router.put('/temas/:id', exigirLogin, async (req, res) => {
+  const { titulo, descricao, ordem } = req.body;
+  const { rows } = await pool.query(
+    'UPDATE temas SET titulo=$1, descricao=$2, ordem=$3 WHERE id=$4 RETURNING *',
+    [titulo, descricao, ordem || 0, req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ erro: 'Tema não encontrado.' });
+  res.json(rows[0]);
+});
+
 router.delete('/temas/:id', exigirLogin, async (req, res) => {
   await pool.query('DELETE FROM temas WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
+// ---- AULAS ----
 router.post('/aulas', exigirLogin, async (req, res) => {
   const { tema_id, titulo, conteudo, links, ordem } = req.body;
   const { rows } = await pool.query(
@@ -299,12 +344,6 @@ router.put('/aulas/:id', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.delete('/aulas/:id', exigirLogin, async (req, res) => {
-  await pool.query('DELETE FROM aulas WHERE id = $1', [req.params.id]);
-  res.json({ ok: true });
-});
-
-// Alternar status concluída da aula
 router.patch('/aulas/:id/concluida', exigirLogin, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -320,6 +359,11 @@ router.patch('/aulas/:id/concluida', exigirLogin, async (req, res) => {
     console.error(e);
     res.status(500).json({ erro: 'Erro ao atualizar aula.' });
   }
+});
+
+router.delete('/aulas/:id', exigirLogin, async (req, res) => {
+  await pool.query('DELETE FROM aulas WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
 });
 
 export default router;

@@ -29,13 +29,8 @@
     </div>
 
     <div class="acoes-cabecalho">
-      <button id="abrir-login" type="button">
-        Entrar para editar
-      </button>
-
-      <button id="sair" type="button" hidden>
-        Sair da edição
-      </button>
+      <button id="abrir-login" type="button">Entrar para editar</button>
+      <button id="sair" type="button" hidden>Sair da edição</button>
     </div>
   </header>
 
@@ -47,9 +42,7 @@
         <button type="button" aria-haspopup="true" aria-expanded="false" id="botao-eixos">
           Eixos ▾
         </button>
-        <ul class="submenu" id="submenu-eixos" hidden>
-          <!-- preenchido pelo app.js -->
-        </ul>
+        <ul class="submenu" id="submenu-eixos" hidden></ul>
       </li>
 
       <li><a href="/bibliografia.html">Bibliografia</a></li>
@@ -57,6 +50,19 @@
       <li><button type="button" id="botao-backup">Backup</button></li>
     </ul>
   </nav>
+
+  <div class="busca-container">
+    <span class="busca-icone" aria-hidden="true">🔍</span>
+    <input
+      type="search"
+      id="busca-input"
+      class="busca-input"
+      placeholder="Buscar disciplina, módulo, tema, aula…"
+      autocomplete="off"
+      aria-label="Buscar na ementa"
+    >
+    <div id="busca-resultados" class="busca-resultados" role="listbox"></div>
+  </div>
 
   <main id="conteudo" class="conteudo">
     <div id="mensagem" class="mensagem" role="status" aria-live="polite" hidden></div>

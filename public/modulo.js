@@ -1,14 +1,14 @@
 // ===================================================
 // MODULO.JS — Página de um módulo
-// Lê ?id=N da URL e mostra os temas como cards
+// Cards de tema + editar/excluir quando logada
 // ===================================================
 
 const API = '/api';
 
-// ---------- ESTADO ----------
 let moduloAtual = null;
 let ementaAtual = [];
 let estaLogada = false;
+let temaEditandoId = null;
 
 // ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
@@ -41,14 +41,13 @@ function escapar(texto) {
     .replaceAll('"', '&quot;');
 }
 
-// ---------- PEGAR ID DA URL ----------
 function pegarId() {
   const params = new URLSearchParams(location.search);
   const id = Number(params.get('id'));
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-// ---------- CARREGAR MÓDULO ----------
+// ---------- CARREGAR ----------
 async function carregarModulo() {
   const id = pegarId();
   const container = document.getElementById('temas');
@@ -65,7 +64,6 @@ async function carregarModulo() {
     document.title = `${moduloAtual.titulo} — Literatura Crítica e Comparada`;
     document.getElementById('titulo-modulo').textContent = moduloAtual.titulo;
 
-    // Breadcrumb do eixo
     if (moduloAtual.eixo) {
       document.getElementById('breadcrumb-eixo').textContent =
         `Eixo ${moduloAtual.eixo.numero} — ${moduloAtual.eixo.titulo}`;
@@ -73,7 +71,6 @@ async function carregarModulo() {
       document.getElementById('breadcrumb-eixo').textContent = 'Módulo';
     }
 
-    // Links para eixo e disciplina
     if (moduloAtual.eixo) {
       const urlEixo = `/eixo.html?numero=${moduloAtual.eixo.numero}`;
       document.getElementById('link-eixo').href = urlEixo;
@@ -98,7 +95,7 @@ async function carregarModulo() {
   }
 }
 
-// ---------- RENDERIZAR TEMAS (cards) ----------
+// ---------- RENDERIZAR TEMAS ----------
 function renderizarTemas() {
   const container = document.getElementById('temas');
   if (!moduloAtual || !moduloAtual.temas.length) {
@@ -110,24 +107,36 @@ function renderizarTemas() {
     const total = tema.aulas.length;
     const concluidas = tema.aulas.filter(a => a.concluida).length;
 
-    let textoAulas;
-    if (total === 0) {
-      textoAulas = 'Nenhuma aula ainda';
-    } else {
-      textoAulas = `${concluidas}/${total} aulas`;
-    }
+    const textoAulas = total === 0
+      ? 'Nenhuma aula ainda'
+      : `${concluidas}/${total} aulas`;
 
     return `
-      <a class="cartao-eixo cartao-tema" href="/tema.html?id=${tema.id}">
-        <span class="cartao-numero">Tema</span>
-        <h3 class="cartao-titulo">${escapar(tema.titulo)}</h3>
-        <span class="cartao-contagem">${textoAulas}</span>
-      </a>
+      <div class="cartao-eixo cartao-tema">
+        <a class="cartao-link" href="/tema.html?id=${tema.id}">
+          <span class="cartao-numero">Tema</span>
+          <h3 class="cartao-titulo">${escapar(tema.titulo)}</h3>
+          <span class="cartao-contagem">${textoAulas}</span>
+        </a>
+        ${estaLogada ? `
+          <div class="cartao-acoes">
+            <button class="botao-editar" data-acao="editar-tema" data-id="${tema.id}" type="button">Editar</button>
+            <button class="botao-excluir" data-acao="excluir-tema" data-id="${tema.id}" type="button">Excluir</button>
+          </div>
+        ` : ''}
+      </div>
     `;
   }).join('');
+
+  container.querySelectorAll('[data-acao="editar-tema"]').forEach(btn => {
+    btn.addEventListener('click', abrirEditorEdicao);
+  });
+  container.querySelectorAll('[data-acao="excluir-tema"]').forEach(btn => {
+    btn.addEventListener('click', excluirTema);
+  });
 }
 
-// ---------- SUBMENU DE EIXOS ----------
+// ---------- SUBMENU ----------
 async function carregarSubmenuEixos() {
   try {
     ementaAtual = await api('/ementa');
@@ -152,15 +161,38 @@ async function verificarSessao() {
     document.getElementById('sair').hidden = !estaLogada;
     document.getElementById('aviso-edicao').hidden = !estaLogada;
     document.getElementById('acoes-modulo').hidden = !estaLogada;
+    if (moduloAtual) renderizarTemas();
   } catch {}
 }
 
-// ---------- EDITOR ----------
-function abrirEditor() {
+// ---------- ADICIONAR ----------
+function abrirEditorNova() {
+  temaEditandoId = null;
   const dialog = document.getElementById('dialogo-editor');
   const form = document.getElementById('form-editor');
   form.reset();
+  document.getElementById('titulo-editor').textContent = 'Adicionar tema';
   document.getElementById('erro-editor').hidden = true;
+  dialog.showModal();
+}
+
+// ---------- EDITAR ----------
+function abrirEditorEdicao(evento) {
+  const id = Number(evento.currentTarget.dataset.id);
+  const tema = moduloAtual.temas.find(t => t.id === id);
+  if (!tema) return;
+
+  temaEditandoId = id;
+  const dialog = document.getElementById('dialogo-editor');
+  const form = document.getElementById('form-editor');
+  form.reset();
+  document.getElementById('titulo-editor').textContent = 'Editar tema';
+  document.getElementById('erro-editor').hidden = true;
+
+  form.titulo.value = tema.titulo || '';
+  form.descricao.value = tema.descricao || '';
+  form.ordem.value = tema.ordem || 0;
+
   dialog.showModal();
 }
 
@@ -170,16 +202,22 @@ async function salvarEditor(evento) {
 
   const form = evento.target;
   const dados = {
-    modulo_id: moduloAtual.id,
     titulo: form.titulo.value.trim(),
     descricao: form.descricao?.value.trim() || null,
     ordem: Number(form.ordem.value) || 0
   };
 
   try {
-    await api('/temas', { method: 'POST', body: dados });
+    if (temaEditandoId) {
+      await api(`/temas/${temaEditandoId}`, { method: 'PUT', body: dados });
+      mostrarMensagem('Tema atualizado 🌸');
+    } else {
+      dados.modulo_id = moduloAtual.id;
+      await api('/temas', { method: 'POST', body: dados });
+      mostrarMensagem('Tema criado 🌸');
+    }
     document.getElementById('dialogo-editor').close();
-    mostrarMensagem('Tema salvo 🌸');
+    temaEditandoId = null;
     await carregarModulo();
   } catch (e) {
     document.getElementById('erro-editor').textContent = e.message;
@@ -187,10 +225,22 @@ async function salvarEditor(evento) {
   }
 }
 
-// ---------- EXCLUIR MÓDULO ----------
+// ---------- EXCLUIR ----------
+async function excluirTema(evento) {
+  const id = Number(evento.currentTarget.dataset.id);
+  if (!confirm('Excluir esse tema? Apaga as aulas dentro. Não tem volta.')) return;
+  try {
+    await api(`/temas/${id}`, { method: 'DELETE' });
+    mostrarMensagem('Tema excluído.');
+    await carregarModulo();
+  } catch (e) {
+    mostrarMensagem(e.message, 'erro');
+  }
+}
+
 async function excluirModulo() {
   if (!moduloAtual) return;
-  if (!confirm('Excluir esse módulo? Isso apaga todos os temas e aulas dentro dele. Não tem volta.')) return;
+  if (!confirm('Excluir esse módulo? Apaga temas e aulas dentro. Não tem volta.')) return;
 
   try {
     await api(`/modulos/${moduloAtual.id}`, { method: 'DELETE' });
@@ -266,6 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       estaLogada = true;
       await verificarSessao();
       dlgLogin.close();
+      await carregarModulo();
       mostrarMensagem('Bem-vinda de volta 🌿');
     } catch (err) {
       const el = document.getElementById('erro-login');
@@ -279,17 +330,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     await api('/logout', { method: 'POST' });
     estaLogada = false;
     await verificarSessao();
+    await carregarModulo();
     mostrarMensagem('Sessão encerrada.');
   });
 
-  // --- Adicionar / excluir ---
-  document.getElementById('btn-add-tema').addEventListener('click', abrirEditor);
+  // --- Botões ---
+  document.getElementById('btn-add-tema').addEventListener('click', abrirEditorNova);
   document.getElementById('btn-excluir-modulo').addEventListener('click', excluirModulo);
 
   // --- Editor ---
   document.getElementById('form-editor').addEventListener('submit', salvarEditor);
   document.getElementById('cancelar-editor').addEventListener('click', () => {
     document.getElementById('dialogo-editor').close();
+    temaEditandoId = null;
   });
 
   // --- Menu suspenso ---

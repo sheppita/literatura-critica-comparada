@@ -1,14 +1,14 @@
 // ===================================================
 // DISCIPLINA.JS — Página de uma disciplina
-// Lê ?id=N da URL e mostra os módulos como cards
+// Cards de módulo + editar/excluir quando logada
 // ===================================================
 
 const API = '/api';
 
-// ---------- ESTADO ----------
 let disciplinaAtual = null;
 let ementaAtual = [];
 let estaLogada = false;
+let moduloEditandoId = null;
 
 // ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
@@ -41,14 +41,13 @@ function escapar(texto) {
     .replaceAll('"', '&quot;');
 }
 
-// ---------- PEGAR ID DA URL ----------
 function pegarId() {
   const params = new URLSearchParams(location.search);
   const id = Number(params.get('id'));
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-// ---------- CARREGAR DISCIPLINA ----------
+// ---------- CARREGAR ----------
 async function carregarDisciplina() {
   const id = pegarId();
   const container = document.getElementById('modulos');
@@ -65,7 +64,6 @@ async function carregarDisciplina() {
     document.title = `${disciplinaAtual.titulo} — Literatura Crítica e Comparada`;
     document.getElementById('titulo-disciplina').textContent = disciplinaAtual.titulo;
 
-    // Breadcrumb do eixo
     if (disciplinaAtual.eixo) {
       document.getElementById('breadcrumb-eixo').textContent =
         `Eixo ${disciplinaAtual.eixo.numero} — ${disciplinaAtual.eixo.titulo}`;
@@ -73,7 +71,6 @@ async function carregarDisciplina() {
       document.getElementById('breadcrumb-eixo').textContent = 'Disciplina';
     }
 
-    // Links pro eixo (topo e rodapé)
     if (disciplinaAtual.eixo) {
       const linkTopo = document.getElementById('link-eixo');
       const linkRodape = document.getElementById('link-eixo-rodape');
@@ -93,7 +90,7 @@ async function carregarDisciplina() {
   }
 }
 
-// ---------- RENDERIZAR MÓDULOS (cards) ----------
+// ---------- RENDERIZAR MÓDULOS ----------
 function renderizarModulos() {
   const container = document.getElementById('modulos');
   if (!disciplinaAtual || !disciplinaAtual.modulos.length) {
@@ -102,24 +99,45 @@ function renderizarModulos() {
   }
 
   container.innerHTML = disciplinaAtual.modulos.map(mod => {
-    const totalTemas = mod.temas.length;
-    const textoTemas = totalTemas === 0
-      ? 'Nenhum tema ainda'
-      : totalTemas === 1
-        ? '1 tema'
-        : `${totalTemas} temas`;
+    let total = 0;
+    let concluidas = 0;
+    mod.temas.forEach(t => {
+      t.aulas.forEach(a => {
+        total++;
+        if (a.concluida) concluidas++;
+      });
+    });
+
+    const textoAulas = total === 0
+      ? 'Nenhuma aula ainda'
+      : `${concluidas}/${total} aulas`;
 
     return `
-      <a class="cartao-eixo cartao-modulo" href="/modulo.html?id=${mod.id}">
-        <span class="cartao-numero">Módulo</span>
-        <h3 class="cartao-titulo">${escapar(mod.titulo)}</h3>
-        <span class="cartao-contagem">${textoTemas}</span>
-      </a>
+      <div class="cartao-eixo cartao-modulo">
+        <a class="cartao-link" href="/modulo.html?id=${mod.id}">
+          <span class="cartao-numero">Módulo</span>
+          <h3 class="cartao-titulo">${escapar(mod.titulo)}</h3>
+          <span class="cartao-contagem">${textoAulas}</span>
+        </a>
+        ${estaLogada ? `
+          <div class="cartao-acoes">
+            <button class="botao-editar" data-acao="editar-modulo" data-id="${mod.id}" type="button">Editar</button>
+            <button class="botao-excluir" data-acao="excluir-modulo" data-id="${mod.id}" type="button">Excluir</button>
+          </div>
+        ` : ''}
+      </div>
     `;
   }).join('');
+
+  container.querySelectorAll('[data-acao="editar-modulo"]').forEach(btn => {
+    btn.addEventListener('click', abrirEditorEdicao);
+  });
+  container.querySelectorAll('[data-acao="excluir-modulo"]').forEach(btn => {
+    btn.addEventListener('click', excluirModulo);
+  });
 }
 
-// ---------- SUBMENU DE EIXOS ----------
+// ---------- SUBMENU ----------
 async function carregarSubmenuEixos() {
   try {
     ementaAtual = await api('/ementa');
@@ -144,15 +162,38 @@ async function verificarSessao() {
     document.getElementById('sair').hidden = !estaLogada;
     document.getElementById('aviso-edicao').hidden = !estaLogada;
     document.getElementById('acoes-disciplina').hidden = !estaLogada;
+    if (disciplinaAtual) renderizarModulos();
   } catch {}
 }
 
-// ---------- EDITOR ----------
-function abrirEditor() {
+// ---------- ADICIONAR ----------
+function abrirEditorNova() {
+  moduloEditandoId = null;
   const dialog = document.getElementById('dialogo-editor');
   const form = document.getElementById('form-editor');
   form.reset();
+  document.getElementById('titulo-editor').textContent = 'Adicionar módulo';
   document.getElementById('erro-editor').hidden = true;
+  dialog.showModal();
+}
+
+// ---------- EDITAR ----------
+function abrirEditorEdicao(evento) {
+  const id = Number(evento.currentTarget.dataset.id);
+  const mod = disciplinaAtual.modulos.find(m => m.id === id);
+  if (!mod) return;
+
+  moduloEditandoId = id;
+  const dialog = document.getElementById('dialogo-editor');
+  const form = document.getElementById('form-editor');
+  form.reset();
+  document.getElementById('titulo-editor').textContent = 'Editar módulo';
+  document.getElementById('erro-editor').hidden = true;
+
+  form.titulo.value = mod.titulo || '';
+  form.descricao.value = mod.descricao || '';
+  form.ordem.value = mod.ordem || 0;
+
   dialog.showModal();
 }
 
@@ -162,16 +203,22 @@ async function salvarEditor(evento) {
 
   const form = evento.target;
   const dados = {
-    disciplina_id: disciplinaAtual.id,
     titulo: form.titulo.value.trim(),
     descricao: form.descricao?.value.trim() || null,
     ordem: Number(form.ordem.value) || 0
   };
 
   try {
-    await api('/modulos', { method: 'POST', body: dados });
+    if (moduloEditandoId) {
+      await api(`/modulos/${moduloEditandoId}`, { method: 'PUT', body: dados });
+      mostrarMensagem('Módulo atualizado 🌸');
+    } else {
+      dados.disciplina_id = disciplinaAtual.id;
+      await api('/modulos', { method: 'POST', body: dados });
+      mostrarMensagem('Módulo criado 🌸');
+    }
     document.getElementById('dialogo-editor').close();
-    mostrarMensagem('Módulo salvo 🌸');
+    moduloEditandoId = null;
     await carregarDisciplina();
   } catch (e) {
     document.getElementById('erro-editor').textContent = e.message;
@@ -179,10 +226,22 @@ async function salvarEditor(evento) {
   }
 }
 
-// ---------- EXCLUIR DISCIPLINA ----------
+// ---------- EXCLUIR ----------
+async function excluirModulo(evento) {
+  const id = Number(evento.currentTarget.dataset.id);
+  if (!confirm('Excluir esse módulo? Apaga temas e aulas dentro. Não tem volta.')) return;
+  try {
+    await api(`/modulos/${id}`, { method: 'DELETE' });
+    mostrarMensagem('Módulo excluído.');
+    await carregarDisciplina();
+  } catch (e) {
+    mostrarMensagem(e.message, 'erro');
+  }
+}
+
 async function excluirDisciplina() {
   if (!disciplinaAtual) return;
-  if (!confirm('Excluir essa disciplina? Isso apaga todos os módulos, temas e aulas dentro dela. Não tem volta.')) return;
+  if (!confirm('Excluir essa disciplina? Apaga módulos, temas e aulas dentro. Não tem volta.')) return;
 
   try {
     await api(`/disciplinas/${disciplinaAtual.id}`, { method: 'DELETE' });
@@ -258,6 +317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       estaLogada = true;
       await verificarSessao();
       dlgLogin.close();
+      await carregarDisciplina();
       mostrarMensagem('Bem-vinda de volta 🌿');
     } catch (err) {
       const el = document.getElementById('erro-login');
@@ -271,17 +331,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     await api('/logout', { method: 'POST' });
     estaLogada = false;
     await verificarSessao();
+    await carregarDisciplina();
     mostrarMensagem('Sessão encerrada.');
   });
 
-  // --- Adicionar / excluir ---
-  document.getElementById('btn-add-modulo').addEventListener('click', abrirEditor);
+  // --- Botões ---
+  document.getElementById('btn-add-modulo').addEventListener('click', abrirEditorNova);
   document.getElementById('btn-excluir-disciplina').addEventListener('click', excluirDisciplina);
 
   // --- Editor ---
   document.getElementById('form-editor').addEventListener('submit', salvarEditor);
   document.getElementById('cancelar-editor').addEventListener('click', () => {
     document.getElementById('dialogo-editor').close();
+    moduloEditandoId = null;
   });
 
   // --- Menu suspenso ---

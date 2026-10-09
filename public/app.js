@@ -1,13 +1,13 @@
 // ===================================================
 // APP.JS — Home
-// Lista os 9 eixos como cartões clicáveis
+// Lista os 9 eixos como cartões + barra de busca
 // ===================================================
 
 const API = '/api';
 
-// ---------- ESTADO GLOBAL ----------
 let ementaAtual = [];
 let estaLogada = false;
+let timeoutBusca = null;
 
 // ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
@@ -79,12 +79,9 @@ function renderizarCartoes() {
       });
     });
 
-    let textoAulas;
-    if (total === 0) {
-      textoAulas = 'Nenhuma aula ainda';
-    } else {
-      textoAulas = `${concluidas}/${total} aulas`;
-    }
+    const textoAulas = total === 0
+      ? 'Nenhuma aula ainda'
+      : `${concluidas}/${total} aulas`;
 
     return `
       <a class="cartao-eixo" href="/eixo.html?numero=${eixo.numero}">
@@ -124,8 +121,70 @@ async function verificarSessao() {
   } catch {}
 }
 
+// ---------- BUSCA ----------
+function configurarBusca() {
+  const input = document.getElementById('busca-input');
+  const resultados = document.getElementById('busca-resultados');
+  if (!input || !resultados) return;
+
+  input.addEventListener('input', () => {
+    clearTimeout(timeoutBusca);
+    const q = input.value.trim();
+    if (!q) {
+      resultados.innerHTML = '';
+      return;
+    }
+    timeoutBusca = setTimeout(() => executarBusca(q), 250);
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.busca-container')) {
+      resultados.innerHTML = '';
+    }
+  });
+
+  // ESC pra limpar
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = '';
+      resultados.innerHTML = '';
+      input.blur();
+    }
+  });
+}
+
+async function executarBusca(q) {
+  const resultados = document.getElementById('busca-resultados');
+  try {
+    const itens = await api(`/buscar?q=${encodeURIComponent(q)}`);
+    if (!itens.length) {
+      resultados.innerHTML = '<div class="busca-vazio">Nada encontrado por aqui…</div>';
+      return;
+    }
+    resultados.innerHTML = itens.map(item => {
+      const url = item.url || `${urlBuscaParaTipo(item.tipo, item.id)}`;
+      return `
+        <a class="busca-item" href="${url}">
+          <span class="busca-item-tipo" data-tipo="${item.tipo}">${item.tipo}</span>
+          ${escapar(item.titulo)}
+        </a>
+      `;
+    }).join('');
+  } catch (e) {
+    resultados.innerHTML = `<div class="busca-vazio">Erro: ${escapar(e.message)}</div>`;
+  }
+}
+
+// Alguns itens vêm sem url do backend (ex: aula), montamos aqui
+function urlBuscaParaTipo(tipo, id) {
+  return tipo === 'eixo'
+    ? `/eixo.html?numero=${id}`
+    : '/';
+}
+
 // ===================================================
-// BOTÕES FLUTUANTES — auto-inicialização
+// BOTÕES FLUTUANTES
 // ===================================================
 (function ativarBotoesFlutuantes() {
   function atualizarVisibilidade() {
@@ -143,29 +202,18 @@ async function verificarSessao() {
   function iniciar() {
     const btnTopo = document.getElementById('ir-topo');
     const btnFundo = document.getElementById('ir-fundo');
-
-    if (btnTopo) {
-      btnTopo.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    if (btnFundo) {
-      btnFundo.onclick = () => window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
+    if (btnTopo) btnTopo.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (btnFundo) btnFundo.onclick = () => window.scrollTo({
+      top: document.documentElement.scrollHeight, behavior: 'smooth'
+    });
 
     window.addEventListener('scroll', atualizarVisibilidade);
     window.addEventListener('resize', atualizarVisibilidade);
-
-    if (window.ResizeObserver) {
-      new ResizeObserver(atualizarVisibilidade).observe(document.body);
-    }
+    if (window.ResizeObserver) new ResizeObserver(atualizarVisibilidade).observe(document.body);
     document.addEventListener('toggle', atualizarVisibilidade, true);
 
     atualizarVisibilidade();
-    [100, 300, 600, 1000, 2000, 3000].forEach(ms =>
-      setTimeout(atualizarVisibilidade, ms)
-    );
+    [100, 300, 600, 1000, 2000, 3000].forEach(ms => setTimeout(atualizarVisibilidade, ms));
   }
 
   if (document.readyState === 'loading') {
@@ -181,6 +229,7 @@ async function verificarSessao() {
 document.addEventListener('DOMContentLoaded', async () => {
   await verificarSessao();
   await carregarEmenta();
+  configurarBusca();
 
   // --- Login ---
   const dlgLogin = document.getElementById('dialogo-login');
@@ -210,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     mostrarMensagem('Sessão encerrada.');
   });
 
-  // --- Menu suspenso de eixos ---
+  // --- Menu suspenso ---
   const botaoEixos = document.getElementById('botao-eixos');
   const submenuEixos = document.getElementById('submenu-eixos');
   if (botaoEixos && submenuEixos) {
@@ -228,7 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- Botão de backup ---
+  // --- Backup ---
   const botaoBackup = document.getElementById('botao-backup');
   if (botaoBackup) {
     botaoBackup.addEventListener('click', async () => {

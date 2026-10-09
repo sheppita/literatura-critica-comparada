@@ -28,13 +28,8 @@
     </div>
 
     <div class="acoes-cabecalho">
-      <button id="abrir-login" type="button">
-        Entrar para editar
-      </button>
-
-      <button id="sair" type="button" hidden>
-        Sair da edição
-      </button>
+      <button id="abrir-login" type="button">Entrar para editar</button>
+      <button id="sair" type="button" hidden>Sair da edição</button>
     </div>
   </header>
 
@@ -46,9 +41,7 @@
         <button type="button" aria-haspopup="true" aria-expanded="false" id="botao-eixos">
           Eixos ▾
         </button>
-        <ul class="submenu" id="submenu-eixos" hidden>
-          <!-- preenchido pelo eixo.js -->
-        </ul>
+        <ul class="submenu" id="submenu-eixos" hidden></ul>
       </li>
 
       <li><a href="/bibliografia.html">Bibliografia</a></li>
@@ -68,17 +61,16 @@
     <section aria-labelledby="titulo-disciplinas">
       <div class="titulo-secao">
         <h2 id="titulo-disciplinas">Disciplinas</h2>
-        <p>Abra uma disciplina para explorar seu conteúdo.</p>
+        <p>Escolha uma disciplina para explorar módulos, temas e aulas.</p>
       </div>
 
-      <div id="disciplinas" aria-busy="true">
+      <div id="disciplinas" class="grade-eixos" aria-busy="true">
         <p>Carregando…</p>
       </div>
 
-        <button id="btn-add-disciplina" class="botao-adicionar-grande" type="button" hidden>
+      <button id="btn-add-disciplina" class="botao-adicionar-grande" type="button" hidden>
         + Adicionar disciplina
       </button>
-
     </section>
   </main>
 
@@ -104,7 +96,7 @@
     </form>
   </dialog>
 
-<dialog id="dialogo-editor" aria-labelledby="titulo-editor">
+  <dialog id="dialogo-editor" aria-labelledby="titulo-editor">
     <form id="form-editor">
       <h2 id="titulo-editor">Adicionar disciplina</h2>
 
@@ -118,38 +110,6 @@
       <input id="campo-ordem" name="ordem" type="number" min="0" max="1000000" step="1" value="0" required>
 
       <p class="ajuda">Apenas o título é obrigatório.</p>
-
-      <p id="erro-editor" class="erro" role="alert" hidden></p>
-
-      <div class="acoes-formulario">
-        <button id="cancelar-editor" type="button">Cancelar</button>
-        <button id="salvar-editor" type="submit">Salvar</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="dialogo-editor" aria-labelledby="titulo-editor">
-    <form id="form-editor">
-      <h2 id="titulo-editor">Adicionar conteúdo</h2>
-
-      <label for="campo-titulo">Título</label>
-      <input id="campo-titulo" name="titulo" type="text" maxlength="500" required>
-
-      <label for="campo-descricao">Descrição ou ementa</label>
-      <textarea id="campo-descricao" name="descricao" rows="5" maxlength="50000"></textarea>
-
-      <div id="campos-tema" hidden>
-        <label for="campo-anotacoes">Anotações / conteúdo da aula</label>
-        <textarea id="campo-anotacoes" name="anotacoes" rows="5" maxlength="50000"></textarea>
-
-        <label for="campo-links">Links — um por linha</label>
-        <textarea id="campo-links" name="links" rows="3" maxlength="20000"></textarea>
-      </div>
-
-      <label for="campo-ordem">Ordem de apresentação</label>
-      <input id="campo-ordem" name="ordem" type="number" min="0" max="1000000" step="1" value="0" required>
-
-      <p class="ajuda">Apenas o título é obrigatório. A ordem define a posição na lista.</p>
 
       <p id="erro-editor" class="erro" role="alert" hidden></p>
 
