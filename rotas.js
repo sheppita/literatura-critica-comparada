@@ -9,6 +9,17 @@ function exigirLogin(req, res, next) {
   return res.status(401).json({ erro: 'Faça login para continuar.' });
 }
 
+// ---------- UTIL: normalizar texto pra comparação ----------
+function normalizar(texto) {
+  if (!texto) return '';
+  return String(texto)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // remove acentos
+    .replace(/\s+/g, ' ')              // colapsa espaços
+    .trim();
+}
+
 // ---------- LOGIN ----------
 router.post('/login', (req, res) => {
   const { senha } = req.body;
@@ -68,9 +79,8 @@ router.get('/ementa', async (req, res) => {
   }
 });
 
-// ---------- ITENS INDIVIDUAIS (públicos) ----------
+// ---------- ITENS INDIVIDUAIS ----------
 
-// Disciplina + módulos + temas + aulas
 router.get('/disciplinas/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -105,7 +115,7 @@ router.get('/disciplinas/:id', async (req, res) => {
       }
     }
 
-    const arvore = {
+    res.json({
       ...disc,
       eixo,
       modulos: modulos.map(m => ({
@@ -117,16 +127,13 @@ router.get('/disciplinas/:id', async (req, res) => {
             aulas: aulas.filter(a => a.tema_id === t.id)
           }))
       }))
-    };
-
-    res.json(arvore);
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ erro: 'Erro ao carregar disciplina.' });
   }
 });
 
-// Módulo + temas + aulas
 router.get('/modulos/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -157,7 +164,7 @@ router.get('/modulos/:id', async (req, res) => {
       )).rows;
     }
 
-    const arvore = {
+    res.json({
       ...mod,
       disciplina: disc ? { id: disc.id, titulo: disc.titulo } : null,
       eixo,
@@ -165,16 +172,13 @@ router.get('/modulos/:id', async (req, res) => {
         ...t,
         aulas: aulas.filter(a => a.tema_id === t.id)
       }))
-    };
-
-    res.json(arvore);
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ erro: 'Erro ao carregar módulo.' });
   }
 });
 
-// Tema + aulas
 router.get('/temas/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -201,12 +205,24 @@ router.get('/temas/:id', async (req, res) => {
       'SELECT * FROM aulas WHERE tema_id = $1 ORDER BY ordem, id', [id]
     )).rows;
 
+    // Anexa livros a cada aula
+    const aulasIds = aulas.map(a => a.id);
+    let livros = [];
+    if (aulasIds.length) {
+      livros = (await pool.query(
+        'SELECT * FROM livros WHERE aula_id = ANY($1) ORDER BY id', [aulasIds]
+      )).rows;
+    }
+
     res.json({
       ...tema,
       modulo: mod ? { id: mod.id, titulo: mod.titulo } : null,
       disciplina: disc ? { id: disc.id, titulo: disc.titulo } : null,
       eixo,
-      aulas
+      aulas: aulas.map(a => ({
+        ...a,
+        livros: livros.filter(l => l.aula_id === a.id)
+      }))
     });
   } catch (e) {
     console.error(e);
@@ -214,7 +230,7 @@ router.get('/temas/:id', async (req, res) => {
   }
 });
 
-// ---------- BUSCA (pública) ----------
+// ---------- BUSCA ----------
 router.get('/buscar', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
@@ -236,6 +252,9 @@ router.get('/buscar', async (req, res) => {
       UNION ALL
       SELECT 'aula', id, titulo, NULL, NULL
         FROM aulas WHERE titulo ILIKE $1 OR conteudo ILIKE $1
+      UNION ALL
+      SELECT 'livro', id, titulo, NULL, NULL
+        FROM livros WHERE titulo ILIKE $1 OR autor ILIKE $1
       LIMIT 50;
     `;
     const { rows } = await pool.query(sql, [termo]);
@@ -247,10 +266,8 @@ router.get('/buscar', async (req, res) => {
 });
 
 // ===================================================
-// CADASTRO (exige login)
+// CADASTRO — DISCIPLINAS
 // ===================================================
-
-// ---- DISCIPLINAS ----
 router.post('/disciplinas', exigirLogin, async (req, res) => {
   const { eixo_id, titulo, descricao, ordem } = req.body;
   const { rows } = await pool.query(
@@ -275,7 +292,7 @@ router.delete('/disciplinas/:id', exigirLogin, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- MÓDULOS ----
+// ---------- MÓDULOS ----------
 router.post('/modulos', exigirLogin, async (req, res) => {
   const { disciplina_id, titulo, descricao, ordem } = req.body;
   const { rows } = await pool.query(
@@ -300,7 +317,7 @@ router.delete('/modulos/:id', exigirLogin, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- TEMAS ----
+// ---------- TEMAS ----------
 router.post('/temas', exigirLogin, async (req, res) => {
   const { modulo_id, titulo, descricao, ordem } = req.body;
   const { rows } = await pool.query(
@@ -325,7 +342,7 @@ router.delete('/temas/:id', exigirLogin, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- AULAS ----
+// ---------- AULAS ----------
 router.post('/aulas', exigirLogin, async (req, res) => {
   const { tema_id, titulo, conteudo, links, ordem } = req.body;
   const { rows } = await pool.query(
@@ -347,10 +364,7 @@ router.put('/aulas/:id', exigirLogin, async (req, res) => {
 router.patch('/aulas/:id/concluida', exigirLogin, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `UPDATE aulas
-       SET concluida = NOT concluida
-       WHERE id = $1
-       RETURNING *`,
+      `UPDATE aulas SET concluida = NOT concluida WHERE id = $1 RETURNING *`,
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ erro: 'Aula não encontrada.' });
@@ -363,6 +377,158 @@ router.patch('/aulas/:id/concluida', exigirLogin, async (req, res) => {
 
 router.delete('/aulas/:id', exigirLogin, async (req, res) => {
   await pool.query('DELETE FROM aulas WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
+});
+
+// ===================================================
+// LIVROS / BIBLIOGRAFIA
+// ===================================================
+
+// Lista TODOS os livros com contexto (aula, tema, módulo, disciplina, eixo)
+// + flag de repetido (mesmo título + autor + capítulo em outra aula)
+router.get('/livros', async (req, res) => {
+  try {
+    const sql = `
+      SELECT
+        l.*,
+        a.titulo  AS aula_titulo,
+        a.id      AS aula_id,
+        t.id      AS tema_id,
+        t.titulo  AS tema_titulo,
+        m.id      AS modulo_id,
+        m.titulo  AS modulo_titulo,
+        d.id      AS disciplina_id,
+        d.titulo  AS disciplina_titulo,
+        e.numero  AS eixo_numero,
+        e.titulo  AS eixo_titulo
+      FROM livros l
+      JOIN aulas a       ON a.id = l.aula_id
+      JOIN temas t       ON t.id = a.tema_id
+      JOIN modulos m     ON m.id = t.modulo_id
+      JOIN disciplinas d ON d.id = m.disciplina_id
+      JOIN eixos e       ON e.id = d.eixo_id
+      ORDER BY l.criado_em DESC, l.id DESC
+    `;
+    const { rows } = await pool.query(sql);
+
+    // Detecta repetidos: mesma normalização de título+autor+capítulo
+    const mapa = new Map();
+    rows.forEach(l => {
+      const chave = [
+        normalizar(l.titulo),
+        normalizar(l.autor),
+        normalizar(l.capitulo)
+      ].join('||');
+      if (!mapa.has(chave)) mapa.set(chave, []);
+      mapa.get(chave).push(l.id);
+    });
+
+    const comFlag = rows.map(l => {
+      const chave = [
+        normalizar(l.titulo),
+        normalizar(l.autor),
+        normalizar(l.capitulo)
+      ].join('||');
+      const ids = mapa.get(chave) || [];
+      return {
+        ...l,
+        repetido: ids.length > 1,
+        ocorrencias: ids.length
+      };
+    });
+
+    res.json(comFlag);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao carregar bibliografia.' });
+  }
+});
+
+// Lista livros de UMA aula + avisa se já foi usado em outra
+router.get('/aulas/:id/livros', async (req, res) => {
+  try {
+    const aulaId = Number(req.params.id);
+
+    const meus = (await pool.query(
+      'SELECT * FROM livros WHERE aula_id = $1 ORDER BY id', [aulaId]
+    )).rows;
+
+    // Pra cada livro, busca em outras aulas
+    const resultado = [];
+    for (const l of meus) {
+      const outros = (await pool.query(
+        `SELECT l2.id, l2.aula_id, a.titulo AS aula_titulo,
+                t.titulo AS tema_titulo, m.titulo AS modulo_titulo,
+                d.titulo AS disciplina_titulo,
+                e.numero AS eixo_numero, e.titulo AS eixo_titulo
+         FROM livros l2
+         JOIN aulas a       ON a.id = l2.aula_id
+         JOIN temas t       ON t.id = a.tema_id
+         JOIN modulos m     ON m.id = t.modulo_id
+         JOIN disciplinas d ON d.id = m.disciplina_id
+         JOIN eixos e       ON e.id = d.eixo_id
+         WHERE l2.id <> $1
+           AND l2.aula_id <> $2
+           AND lower(unaccent(l2.titulo)) = lower(unaccent($3))
+           AND COALESCE(lower(unaccent(l2.autor)), '') = COALESCE(lower(unaccent($4)), '')
+           AND COALESCE(lower(unaccent(l2.capitulo)), '') = COALESCE(lower(unaccent($5)), '')
+         ORDER BY l2.id`,
+        [l.id, aulaId, l.titulo, l.autor, l.capitulo]
+      )).rows;
+
+      resultado.push({ ...l, usadoEm: outros });
+    }
+
+    res.json(resultado);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao carregar livros da aula.' });
+  }
+});
+
+// Criar livro
+router.post('/livros', exigirLogin, async (req, res) => {
+  const { aula_id, titulo, autor, capitulo, descricao_capitulo, tipo, observacoes } = req.body;
+
+  if (!aula_id || !titulo || !tipo) {
+    return res.status(400).json({ erro: 'Aula, título e tipo são obrigatórios.' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO livros (aula_id, titulo, autor, capitulo, descricao_capitulo, tipo, observacoes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [aula_id, titulo, autor, capitulo, descricao_capitulo, tipo, observacoes]
+    );
+    res.json(rows[0]);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao criar livro.' });
+  }
+});
+
+// Editar livro
+router.put('/livros/:id', exigirLogin, async (req, res) => {
+  const { titulo, autor, capitulo, descricao_capitulo, tipo, observacoes } = req.body;
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE livros
+       SET titulo=$1, autor=$2, capitulo=$3, descricao_capitulo=$4, tipo=$5, observacoes=$6
+       WHERE id=$7 RETURNING *`,
+      [titulo, autor, capitulo, descricao_capitulo, tipo, observacoes, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ erro: 'Livro não encontrado.' });
+    res.json(rows[0]);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao editar livro.' });
+  }
+});
+
+// Excluir livro
+router.delete('/livros/:id', exigirLogin, async (req, res) => {
+  await pool.query('DELETE FROM livros WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 

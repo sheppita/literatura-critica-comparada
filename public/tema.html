@@ -85,13 +85,17 @@
         </button>
       </div>
 
-      <div id="aulas" class="grade-eixos" aria-busy="true">
-        <p>Carregando…</p>
+      <div id="aulas" class="grade-aulas" aria-busy="true">
+         <p>Carregando…</p>
       </div>
 
       <div class="acoes-item" id="acoes-tema" hidden>
-        <button data-acao="adicionar" data-tipo="aula" id="btn-add-aula">+ Adicionar aula</button>
-        <button class="botao-excluir" id="btn-excluir-tema">Excluir tema</button>
+        <button id="btn-add-aula" class="botao-adicionar-grande" type="button">
+          + Adicionar aula
+        </button>
+        <button class="botao-excluir" id="btn-excluir-tema" type="button">
+          Excluir tema
+        </button>
       </div>
     </section>
   </main>
@@ -129,6 +133,7 @@
     </form>
   </dialog>
 
+  <!-- Dialog: adicionar aula -->
   <dialog id="dialogo-editor" aria-labelledby="titulo-editor">
     <form id="form-editor">
       <h2 id="titulo-editor">Adicionar aula</h2>
@@ -156,6 +161,7 @@
     </form>
   </dialog>
 
+  <!-- Dialog: editar aula -->
   <dialog id="dialogo-editar-aula" aria-labelledby="titulo-editar-aula">
     <form id="form-editar-aula">
       <h2 id="titulo-editar-aula">Editar aula</h2>
@@ -174,6 +180,47 @@
       <div class="acoes-formulario">
         <button id="cancelar-editar-aula" type="button">Cancelar</button>
         <button type="submit">Salvar alterações</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog: adicionar/editar livro -->
+  <dialog id="dialogo-livro" aria-labelledby="titulo-livro">
+    <form id="form-livro">
+      <h2 id="titulo-livro">Adicionar livro</h2>
+
+      <label for="livro-titulo">Título do livro / texto</label>
+      <input id="livro-titulo" name="titulo" type="text" maxlength="500" required>
+
+      <label for="livro-autor">Autor(a)</label>
+      <input id="livro-autor" name="autor" type="text" maxlength="300">
+
+      <label for="livro-capitulo">Capítulo (número ou intervalo — ex: 3, 3-5, 45-67)</label>
+      <input id="livro-capitulo" name="capitulo" type="text" maxlength="50">
+
+      <label for="livro-descricao-capitulo">Descrição do capítulo (opcional)</label>
+      <input id="livro-descricao-capitulo" name="descricao_capitulo" type="text" maxlength="500">
+
+      <fieldset class="livro-tipo">
+        <legend>Tipo</legend>
+        <label class="radio-label">
+          <input type="radio" name="tipo" value="texto-base" checked>
+          Texto-base
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="tipo" value="ancora">
+          Obra literária âncora
+        </label>
+      </fieldset>
+
+      <label for="livro-observacoes">Observações (opcional)</label>
+      <textarea id="livro-observacoes" name="observacoes" rows="3" maxlength="5000"></textarea>
+
+      <p id="erro-livro" class="erro" role="alert" hidden></p>
+
+      <div class="acoes-formulario">
+        <button id="cancelar-livro" type="button">Cancelar</button>
+        <button type="submit">Salvar</button>
       </div>
     </form>
   </dialog>

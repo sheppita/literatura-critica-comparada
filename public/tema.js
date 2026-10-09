@@ -1,16 +1,17 @@
 // ===================================================
 // TEMA.JS — Página de um tema
-// Lê ?id=N da URL e mostra as aulas como cards
+// Aulas + filtros + concluída + bibliografia (livros)
 // ===================================================
 
 const API = '/api';
 
-// ---------- ESTADO ----------
 let temaAtual = null;
 let ementaAtual = [];
 let estaLogada = false;
 let aulaEditandoId = null;
-let filtroAtual = 'todas'; // 'todas' | 'pendentes' | 'concluidas'
+let aulaAtualLivros = null;   // aula em que estamos mexendo nos livros
+let livroEditandoId = null;
+let filtroAtual = 'todas';
 
 // ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
@@ -105,7 +106,7 @@ async function carregarTema() {
   }
 }
 
-// ---------- ATUALIZAR CONTAGENS DO FILTRO ----------
+// ---------- CONTAGENS DO FILTRO ----------
 function atualizarContagens() {
   const total = temaAtual.aulas.length;
   const concluidas = temaAtual.aulas.filter(a => a.concluida).length;
@@ -144,15 +145,9 @@ function renderizarAulas() {
 
   container.innerHTML = aulasFiltradas.map(aula => {
     const linksCount = (aula.links || '')
-      .split('\n')
-      .map(l => l.trim())
-      .filter(Boolean).length;
-
+      .split('\n').map(l => l.trim()).filter(Boolean).length;
     const textoLinks = linksCount === 0
-      ? 'Sem links'
-      : linksCount === 1
-        ? '1 link'
-        : `${linksCount} links`;
+      ? 'Sem links' : linksCount === 1 ? '1 link' : `${linksCount} links`;
 
     const preview = aula.conteudo
       ? escapar(aula.conteudo).slice(0, 140) + (aula.conteudo.length > 140 ? '…' : '')
@@ -164,15 +159,18 @@ function renderizarAulas() {
       <div class="cartao-eixo cartao-aula${classeConcluida}">
         ${estaLogada ? `
           <button class="botao-check" data-acao="toggle-concluida" data-id="${aula.id}" type="button"
-                  title="${aula.concluida ? 'Desmarcar como concluída' : 'Marcar como concluída'}"
-                  aria-label="${aula.concluida ? 'Desmarcar como concluída' : 'Marcar como concluída'}">
+                  title="${aula.concluida ? 'Desmarcar como concluída' : 'Marcar como concluída'}">
             ${aula.concluida ? '✓' : ''}
           </button>
         ` : (aula.concluida ? '<span class="check-visivel" aria-hidden="true">✓</span>' : '')}
+
         <span class="cartao-numero">Aula</span>
         <h3 class="cartao-titulo">${escapar(aula.titulo)}</h3>
         ${preview ? `<p class="cartao-preview">${preview}</p>` : ''}
         <span class="cartao-contagem">${textoLinks}</span>
+
+        ${renderizarLivrosDaAula(aula)}
+
         ${estaLogada ? `
           <div class="cartao-acoes">
             <button data-acao="editar-aula" data-id="${aula.id}" type="button">Editar</button>
@@ -184,15 +182,62 @@ function renderizarAulas() {
   }).join('');
 
   // Eventos
-  container.querySelectorAll('[data-acao="editar-aula"]').forEach(btn => {
-    btn.addEventListener('click', abrirEditorEdicao);
-  });
-  container.querySelectorAll('[data-acao="excluir-aula"]').forEach(btn => {
-    btn.addEventListener('click', excluirAula);
-  });
-  container.querySelectorAll('[data-acao="toggle-concluida"]').forEach(btn => {
-    btn.addEventListener('click', toggleConcluida);
-  });
+  container.querySelectorAll('[data-acao="editar-aula"]').forEach(btn =>
+    btn.addEventListener('click', abrirEditorEdicao));
+  container.querySelectorAll('[data-acao="excluir-aula"]').forEach(btn =>
+    btn.addEventListener('click', excluirAula));
+  container.querySelectorAll('[data-acao="toggle-concluida"]').forEach(btn =>
+    btn.addEventListener('click', toggleConcluida));
+  container.querySelectorAll('[data-acao="add-livro"]').forEach(btn =>
+    btn.addEventListener('click', abrirEditorLivro));
+  container.querySelectorAll('[data-acao="editar-livro"]').forEach(btn =>
+    btn.addEventListener('click', editarLivro));
+  container.querySelectorAll('[data-acao="excluir-livro"]').forEach(btn =>
+    btn.addEventListener('click', excluirLivro));
+}
+
+// ---------- LIVROS DENTRO DA AULA ----------
+function renderizarLivrosDaAula(aula) {
+  const livros = aula.livros || [];
+  if (!livros.length && !estaLogada) return '';
+
+  const itens = livros.map(l => {
+    const classeTipo = l.tipo === 'ancora' ? 'livro-ancora' : 'livro-base';
+    const rotuloTipo = l.tipo === 'ancora' ? 'Âncora' : 'Texto-base';
+    const cap = l.capitulo ? ` — Cap. ${escapar(l.capitulo)}` : '';
+    const descCap = l.descricao_capitulo
+      ? `<span class="livro-descricao">${escapar(l.descricao_capitulo)}</span>` : '';
+
+    return `
+      <li class="livro-item ${classeTipo}">
+        <span class="livro-tipo-badge">${rotuloTipo}</span>
+        <span class="livro-info">
+          <strong>${escapar(l.titulo)}</strong>${l.autor ? ` — ${escapar(l.autor)}` : ''}${cap}
+          ${descCap}
+        </span>
+        ${estaLogada ? `
+          <span class="livro-acoes">
+            <button data-acao="editar-livro" data-id="${l.id}" type="button" title="Editar">✎</button>
+            <button data-acao="excluir-livro" data-id="${l.id}" type="button" title="Excluir" class="botao-excluir">✕</button>
+          </span>
+        ` : ''}
+      </li>
+    `;
+  }).join('');
+
+  return `
+    <div class="bibliografia-aula">
+      <p class="rotulo-conteudo">Bibliografia</p>
+      <ul class="lista-livros">
+        ${itens || '<li class="vazio">Nenhum livro cadastrado ainda.</li>'}
+      </ul>
+      ${estaLogada ? `
+        <button class="botao-add-livro" data-acao="add-livro" data-id="${aula.id}" type="button">
+          + Adicionar livro
+        </button>
+      ` : ''}
+    </div>
+  `;
 }
 
 // ---------- TOGGLE CONCLUÍDA ----------
@@ -231,10 +276,11 @@ async function verificarSessao() {
     document.getElementById('sair').hidden = !estaLogada;
     document.getElementById('aviso-edicao').hidden = !estaLogada;
     document.getElementById('acoes-tema').hidden = !estaLogada;
+    if (temaAtual) renderizarAulas();
   } catch {}
 }
 
-// ---------- ADICIONAR AULA ----------
+// ---------- AULA: ADICIONAR ----------
 function abrirEditorNova() {
   const dialog = document.getElementById('dialogo-editor');
   const form = document.getElementById('form-editor');
@@ -267,14 +313,13 @@ async function salvarNovaAula(evento) {
   }
 }
 
-// ---------- EDITAR AULA ----------
+// ---------- AULA: EDITAR ----------
 function abrirEditorEdicao(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   const aula = temaAtual.aulas.find(a => a.id === id);
   if (!aula) return;
 
   aulaEditandoId = id;
-
   const dialog = document.getElementById('dialogo-editar-aula');
   const form = document.getElementById('form-editar-aula');
   form.reset();
@@ -310,10 +355,10 @@ async function salvarEdicaoAula(evento) {
   }
 }
 
-// ---------- EXCLUIR ----------
+// ---------- AULA: EXCLUIR ----------
 async function excluirAula(evento) {
   const id = Number(evento.currentTarget.dataset.id);
-  if (!confirm('Excluir essa aula? Não tem volta.')) return;
+  if (!confirm('Excluir essa aula? Apaga também os livros vinculados. Não tem volta.')) return;
 
   try {
     await api(`/aulas/${id}`, { method: 'DELETE' });
@@ -326,7 +371,7 @@ async function excluirAula(evento) {
 
 async function excluirTema() {
   if (!temaAtual) return;
-  if (!confirm('Excluir esse tema? Isso apaga todas as aulas dentro dele. Não tem volta.')) return;
+  if (!confirm('Excluir esse tema? Apaga aulas e livros dentro. Não tem volta.')) return;
 
   try {
     await api(`/temas/${temaAtual.id}`, { method: 'DELETE' });
@@ -343,6 +388,92 @@ async function excluirTema() {
   }
 }
 
+// ---------- LIVRO: ADICIONAR / EDITAR ----------
+function abrirEditorLivro(evento) {
+  aulaAtualLivros = Number(evento.currentTarget.dataset.id);
+  livroEditandoId = null;
+
+  const dialog = document.getElementById('dialogo-livro');
+  const form = document.getElementById('form-livro');
+  form.reset();
+  document.getElementById('titulo-livro').textContent = 'Adicionar livro';
+  document.getElementById('erro-livro').hidden = true;
+  dialog.showModal();
+}
+
+function editarLivro(evento) {
+  const id = Number(evento.currentTarget.dataset.id);
+  // Encontra o livro percorrendo aulas
+  let livro = null;
+  for (const aula of temaAtual.aulas) {
+    const l = (aula.livros || []).find(x => x.id === id);
+    if (l) { livro = l; aulaAtualLivros = aula.id; break; }
+  }
+  if (!livro) return;
+
+  livroEditandoId = id;
+  const dialog = document.getElementById('dialogo-livro');
+  const form = document.getElementById('form-livro');
+  form.reset();
+  document.getElementById('titulo-livro').textContent = 'Editar livro';
+  document.getElementById('erro-livro').hidden = true;
+
+  form.titulo.value = livro.titulo || '';
+  form.autor.value = livro.autor || '';
+  form.capitulo.value = livro.capitulo || '';
+  form.descricao_capitulo.value = livro.descricao_capitulo || '';
+  form.observacoes.value = livro.observacoes || '';
+  const radio = form.querySelector(`input[name="tipo"][value="${livro.tipo}"]`);
+  if (radio) radio.checked = true;
+
+  dialog.showModal();
+}
+
+async function salvarLivro(evento) {
+  evento.preventDefault();
+  if (!aulaAtualLivros) return;
+
+  const form = evento.target;
+  const dados = {
+    aula_id: aulaAtualLivros,
+    titulo: form.titulo.value.trim(),
+    autor: form.autor?.value.trim() || null,
+    capitulo: form.capitulo?.value.trim() || null,
+    descricao_capitulo: form.descricao_capitulo?.value.trim() || null,
+    tipo: form.querySelector('input[name="tipo"]:checked')?.value || 'texto-base',
+    observacoes: form.observacoes?.value.trim() || null
+  };
+
+  try {
+    if (livroEditandoId) {
+      await api(`/livros/${livroEditandoId}`, { method: 'PUT', body: dados });
+      mostrarMensagem('Livro atualizado 🌸');
+    } else {
+      await api('/livros', { method: 'POST', body: dados });
+      mostrarMensagem('Livro adicionado 🌸');
+    }
+    document.getElementById('dialogo-livro').close();
+    livroEditandoId = null;
+    aulaAtualLivros = null;
+    await carregarTema();
+  } catch (e) {
+    document.getElementById('erro-livro').textContent = e.message;
+    document.getElementById('erro-livro').hidden = false;
+  }
+}
+
+async function excluirLivro(evento) {
+  const id = Number(evento.currentTarget.dataset.id);
+  if (!confirm('Excluir esse livro?')) return;
+  try {
+    await api(`/livros/${id}`, { method: 'DELETE' });
+    mostrarMensagem('Livro excluído.');
+    await carregarTema();
+  } catch (e) {
+    mostrarMensagem(e.message, 'erro');
+  }
+}
+
 // ===================================================
 // BOTÕES FLUTUANTES
 // ===================================================
@@ -352,11 +483,8 @@ async function excluirTema() {
     if (!container) return;
     const altura = document.documentElement.scrollHeight;
     const janela = window.innerHeight;
-    if (altura > janela + 200) {
-      container.classList.add('visivel');
-    } else {
-      container.classList.remove('visivel');
-    }
+    if (altura > janela + 200) container.classList.add('visivel');
+    else container.classList.remove('visivel');
   }
 
   function iniciar() {
@@ -390,7 +518,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await verificarSessao();
   await carregarTema();
 
-  // --- Login ---
+  // Login
   const dlgLogin = document.getElementById('dialogo-login');
   document.getElementById('abrir-login').addEventListener('click', () => dlgLogin.showModal());
   document.getElementById('cancelar-login').addEventListener('click', () => dlgLogin.close());
@@ -411,7 +539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- Logout ---
+  // Logout
   document.getElementById('sair').addEventListener('click', async () => {
     await api('/logout', { method: 'POST' });
     estaLogada = false;
@@ -420,24 +548,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     mostrarMensagem('Sessão encerrada.');
   });
 
-  // --- Adicionar / excluir tema ---
+  // Adicionar / excluir tema
   document.getElementById('btn-add-aula').addEventListener('click', abrirEditorNova);
   document.getElementById('btn-excluir-tema').addEventListener('click', excluirTema);
 
-  // --- Editor (adicionar) ---
+  // Editor aula (adicionar)
   document.getElementById('form-editor').addEventListener('submit', salvarNovaAula);
   document.getElementById('cancelar-editor').addEventListener('click', () => {
     document.getElementById('dialogo-editor').close();
   });
 
-  // --- Editor (editar) ---
+  // Editor aula (editar)
   document.getElementById('form-editar-aula').addEventListener('submit', salvarEdicaoAula);
   document.getElementById('cancelar-editar-aula').addEventListener('click', () => {
     document.getElementById('dialogo-editar-aula').close();
     aulaEditandoId = null;
   });
 
-  // --- Filtros de aula ---
+  // Editor livro
+  document.getElementById('form-livro').addEventListener('submit', salvarLivro);
+  document.getElementById('cancelar-livro').addEventListener('click', () => {
+    document.getElementById('dialogo-livro').close();
+    livroEditandoId = null;
+    aulaAtualLivros = null;
+  });
+
+  // Filtros de aula
   document.querySelectorAll('.filtro-capsula').forEach(btn => {
     btn.addEventListener('click', () => {
       filtroAtual = btn.dataset.filtro;
@@ -449,7 +585,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // --- Menu suspenso ---
+  // Menu suspenso
   const botaoEixos = document.getElementById('botao-eixos');
   const submenuEixos = document.getElementById('submenu-eixos');
   if (botaoEixos && submenuEixos) {
@@ -467,7 +603,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- Backup ---
+  // Backup
   const botaoBackup = document.getElementById('botao-backup');
   if (botaoBackup) {
     botaoBackup.addEventListener('click', async () => {
