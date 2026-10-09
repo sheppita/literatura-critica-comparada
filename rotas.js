@@ -304,4 +304,22 @@ router.delete('/aulas/:id', exigirLogin, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Alternar status concluída da aula
+router.patch('/aulas/:id/concluida', exigirLogin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE aulas
+       SET concluida = NOT concluida
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ erro: 'Aula não encontrada.' });
+    res.json(rows[0]);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao atualizar aula.' });
+  }
+});
+
 export default router;

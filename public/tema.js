@@ -10,6 +10,7 @@ let temaAtual = null;
 let ementaAtual = [];
 let estaLogada = false;
 let aulaEditandoId = null;
+let filtroAtual = 'todas'; // 'todas' | 'pendentes' | 'concluidas'
 
 // ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
@@ -72,7 +73,6 @@ async function carregarTema() {
       document.getElementById('breadcrumb-eixo').textContent = 'Tema';
     }
 
-    // Links para eixo, disciplina, módulo
     if (temaAtual.eixo) {
       const url = `/eixo.html?numero=${temaAtual.eixo.numero}`;
       document.getElementById('link-eixo').href = url;
@@ -95,6 +95,7 @@ async function carregarTema() {
       document.getElementById('link-modulo-rodape-container').hidden = false;
     }
 
+    atualizarContagens();
     renderizarAulas();
     await carregarSubmenuEixos();
   } catch (e) {
@@ -102,6 +103,20 @@ async function carregarTema() {
   } finally {
     container.setAttribute('aria-busy', 'false');
   }
+}
+
+// ---------- ATUALIZAR CONTAGENS DO FILTRO ----------
+function atualizarContagens() {
+  const total = temaAtual.aulas.length;
+  const concluidas = temaAtual.aulas.filter(a => a.concluida).length;
+  const pendentes = total - concluidas;
+
+  const filtrosEl = document.getElementById('filtros-aulas');
+  if (filtrosEl) filtrosEl.hidden = total === 0;
+
+  document.querySelector('[data-contagem="todas"]').textContent = total;
+  document.querySelector('[data-contagem="pendentes"]').textContent = pendentes;
+  document.querySelector('[data-contagem="concluidas"]').textContent = concluidas;
 }
 
 // ---------- RENDERIZAR AULAS ----------
@@ -112,7 +127,22 @@ function renderizarAulas() {
     return;
   }
 
-  container.innerHTML = temaAtual.aulas.map(aula => {
+  const aulasFiltradas = temaAtual.aulas.filter(aula => {
+    if (filtroAtual === 'pendentes') return !aula.concluida;
+    if (filtroAtual === 'concluidas') return aula.concluida;
+    return true;
+  });
+
+  if (!aulasFiltradas.length) {
+    const mensagens = {
+      pendentes: 'Nenhuma aula pendente. Tudo em dia! 🌿',
+      concluidas: 'Nenhuma aula concluída ainda.'
+    };
+    container.innerHTML = `<p class="vazio">${mensagens[filtroAtual] || 'Nada aqui.'}</p>`;
+    return;
+  }
+
+  container.innerHTML = aulasFiltradas.map(aula => {
     const linksCount = (aula.links || '')
       .split('\n')
       .map(l => l.trim())
@@ -124,13 +154,21 @@ function renderizarAulas() {
         ? '1 link'
         : `${linksCount} links`;
 
-    // Se tiver conteúdo, mostra preview
     const preview = aula.conteudo
       ? escapar(aula.conteudo).slice(0, 140) + (aula.conteudo.length > 140 ? '…' : '')
       : '';
 
+    const classeConcluida = aula.concluida ? ' concluida' : '';
+
     return `
-      <div class="cartao-eixo cartao-aula">
+      <div class="cartao-eixo cartao-aula${classeConcluida}">
+        ${estaLogada ? `
+          <button class="botao-check" data-acao="toggle-concluida" data-id="${aula.id}" type="button"
+                  title="${aula.concluida ? 'Desmarcar como concluída' : 'Marcar como concluída'}"
+                  aria-label="${aula.concluida ? 'Desmarcar como concluída' : 'Marcar como concluída'}">
+            ${aula.concluida ? '✓' : ''}
+          </button>
+        ` : (aula.concluida ? '<span class="check-visivel" aria-hidden="true">✓</span>' : '')}
         <span class="cartao-numero">Aula</span>
         <h3 class="cartao-titulo">${escapar(aula.titulo)}</h3>
         ${preview ? `<p class="cartao-preview">${preview}</p>` : ''}
@@ -145,13 +183,27 @@ function renderizarAulas() {
     `;
   }).join('');
 
-  // Ligar eventos
+  // Eventos
   container.querySelectorAll('[data-acao="editar-aula"]').forEach(btn => {
     btn.addEventListener('click', abrirEditorEdicao);
   });
   container.querySelectorAll('[data-acao="excluir-aula"]').forEach(btn => {
     btn.addEventListener('click', excluirAula);
   });
+  container.querySelectorAll('[data-acao="toggle-concluida"]').forEach(btn => {
+    btn.addEventListener('click', toggleConcluida);
+  });
+}
+
+// ---------- TOGGLE CONCLUÍDA ----------
+async function toggleConcluida(evento) {
+  const id = Number(evento.currentTarget.dataset.id);
+  try {
+    await api(`/aulas/${id}/concluida`, { method: 'PATCH' });
+    await carregarTema();
+  } catch (e) {
+    mostrarMensagem(e.message, 'erro');
+  }
 }
 
 // ---------- SUBMENU ----------
@@ -258,7 +310,7 @@ async function salvarEdicaoAula(evento) {
   }
 }
 
-// ---------- EXCLUIR AULA ----------
+// ---------- EXCLUIR ----------
 async function excluirAula(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   if (!confirm('Excluir essa aula? Não tem volta.')) return;
@@ -272,7 +324,6 @@ async function excluirAula(evento) {
   }
 }
 
-// ---------- EXCLUIR TEMA ----------
 async function excluirTema() {
   if (!temaAtual) return;
   if (!confirm('Excluir esse tema? Isso apaga todas as aulas dentro dele. Não tem volta.')) return;
@@ -384,6 +435,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('cancelar-editar-aula').addEventListener('click', () => {
     document.getElementById('dialogo-editar-aula').close();
     aulaEditandoId = null;
+  });
+
+  // --- Filtros de aula ---
+  document.querySelectorAll('.filtro-capsula').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filtroAtual = btn.dataset.filtro;
+      document.querySelectorAll('.filtro-capsula').forEach(b => {
+        b.classList.toggle('ativo', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      renderizarAulas();
+    });
   });
 
   // --- Menu suspenso ---

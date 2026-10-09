@@ -107,12 +107,15 @@ function renderizarTemas() {
   }
 
   container.innerHTML = moduloAtual.temas.map(tema => {
-    const totalAulas = tema.aulas.length;
-    const textoAulas = totalAulas === 0
-      ? 'Nenhuma aula ainda'
-      : totalAulas === 1
-        ? '1 aula'
-        : `${totalAulas} aulas`;
+    const total = tema.aulas.length;
+    const concluidas = tema.aulas.filter(a => a.concluida).length;
+
+    let textoAulas;
+    if (total === 0) {
+      textoAulas = 'Nenhuma aula ainda';
+    } else {
+      textoAulas = `${concluidas}/${total} aulas`;
+    }
 
     return `
       <a class="cartao-eixo cartao-tema" href="/tema.html?id=${tema.id}">

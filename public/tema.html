@@ -73,6 +73,18 @@
         <p>Conteúdos, anotações e materiais de estudo.</p>
       </div>
 
+      <div class="filtros-aulas" role="tablist" aria-label="Filtrar aulas" hidden id="filtros-aulas">
+        <button class="filtro-capsula ativo" data-filtro="todas" role="tab" aria-selected="true">
+          Todas <span class="filtro-contagem" data-contagem="todas">0</span>
+        </button>
+        <button class="filtro-capsula" data-filtro="pendentes" role="tab" aria-selected="false">
+          Pendentes <span class="filtro-contagem" data-contagem="pendentes">0</span>
+        </button>
+        <button class="filtro-capsula" data-filtro="concluidas" role="tab" aria-selected="false">
+          Concluídas <span class="filtro-contagem" data-contagem="concluidas">0</span>
+        </button>
+      </div>
+
       <div id="aulas" class="grade-eixos" aria-busy="true">
         <p>Carregando…</p>
       </div>

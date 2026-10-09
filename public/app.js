@@ -66,18 +66,31 @@ function renderizarCartoes() {
   }
 
   container.innerHTML = ementaAtual.map(eixo => {
-    const totalDisc = eixo.disciplinas.length;
-    const textoDisc = totalDisc === 0
-      ? 'Nenhuma disciplina ainda'
-      : totalDisc === 1
-        ? '1 disciplina'
-        : `${totalDisc} disciplinas`;
+    let total = 0;
+    let concluidas = 0;
+    eixo.disciplinas.forEach(d => {
+      d.modulos.forEach(m => {
+        m.temas.forEach(t => {
+          t.aulas.forEach(a => {
+            total++;
+            if (a.concluida) concluidas++;
+          });
+        });
+      });
+    });
+
+    let textoAulas;
+    if (total === 0) {
+      textoAulas = 'Nenhuma aula ainda';
+    } else {
+      textoAulas = `${concluidas}/${total} aulas`;
+    }
 
     return `
       <a class="cartao-eixo" href="/eixo.html?numero=${eixo.numero}">
         <span class="cartao-numero">Eixo ${eixo.numero}</span>
         <h3 class="cartao-titulo">${escapar(eixo.titulo)}</h3>
-        <span class="cartao-contagem">${textoDisc}</span>
+        <span class="cartao-contagem">${textoAulas}</span>
       </a>
     `;
   }).join('');
