@@ -296,6 +296,41 @@ async function executarBusca(q) {
 }
 
 // ===================================================
+// CABEÇALHO STICKY FINO
+// ===================================================
+(function ativarCabecalhoSticky() {
+  function atualizar() {
+    const barra = document.getElementById('cabecalho-sticky');
+    if (!barra) return;
+
+    const h1 = document.querySelector('.cabecalho h1, header h1');
+    const alvo = document.getElementById('cabecalho-sticky-titulo');
+    if (h1 && alvo) {
+      alvo.textContent = h1.textContent;
+    }
+
+    if (window.scrollY > 180) {
+      barra.classList.add('visivel');
+    } else {
+      barra.classList.remove('visivel');
+    }
+  }
+
+  function iniciar() {
+    window.addEventListener('scroll', atualizar, { passive: true });
+    window.addEventListener('resize', atualizar);
+    [100, 300, 600, 1000, 2000].forEach(ms => setTimeout(atualizar, ms));
+    atualizar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
+})();
+
+// ===================================================
 // BOTÕES FLUTUANTES
 // ===================================================
 (function ativarBotoesFlutuantes() {

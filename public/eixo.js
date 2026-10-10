@@ -81,7 +81,6 @@ async function carregarEixo() {
   }
 }
 
-// ---------- RENDERIZAR DISCIPLINAS ----------
 function renderizarDisciplinas() {
   const container = document.getElementById('disciplinas');
   if (!eixoAtual || !eixoAtual.disciplinas.length) {
@@ -127,7 +126,6 @@ function renderizarDisciplinas() {
     btn.addEventListener('click', excluirDisciplina));
 }
 
-// ---------- SUBMENU ----------
 function preencherSubmenuEixos() {
   const submenu = document.getElementById('submenu-eixos');
   if (!submenu) return;
@@ -140,7 +138,6 @@ function preencherSubmenuEixos() {
   `).join('');
 }
 
-// ---------- LOGIN ----------
 async function verificarSessao() {
   try {
     const r = await api('/sessao');
@@ -154,7 +151,7 @@ async function verificarSessao() {
   } catch {}
 }
 
-// ---------- ADICIONAR ----------
+// ---------- EDITOR ----------
 function abrirEditorNova() {
   disciplinaEditandoId = null;
   const dialog = document.getElementById('dialogo-editor');
@@ -165,7 +162,6 @@ function abrirEditorNova() {
   dialog.showModal();
 }
 
-// ---------- EDITAR ----------
 function abrirEditorEdicao(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   const disc = eixoAtual.disciplinas.find(d => d.id === id);
@@ -212,7 +208,6 @@ async function salvarEditor(evento) {
   }
 }
 
-// ---------- EXCLUIR ----------
 async function excluirDisciplina(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   if (!confirm('Excluir essa disciplina? Apaga módulos, temas e aulas dentro. Não tem volta.')) return;
@@ -274,6 +269,41 @@ async function executarBusca(q) {
     resultados.innerHTML = `<div class="busca-vazio">Erro: ${escapar(e.message)}</div>`;
   }
 }
+
+// ===================================================
+// CABEÇALHO STICKY FINO
+// ===================================================
+(function ativarCabecalhoSticky() {
+  function atualizar() {
+    const barra = document.getElementById('cabecalho-sticky');
+    if (!barra) return;
+
+    const h1 = document.querySelector('.cabecalho h1, header h1');
+    const alvo = document.getElementById('cabecalho-sticky-titulo');
+    if (h1 && alvo) {
+      alvo.textContent = h1.textContent;
+    }
+
+    if (window.scrollY > 180) {
+      barra.classList.add('visivel');
+    } else {
+      barra.classList.remove('visivel');
+    }
+  }
+
+  function iniciar() {
+    window.addEventListener('scroll', atualizar, { passive: true });
+    window.addEventListener('resize', atualizar);
+    [100, 300, 600, 1000, 2000].forEach(ms => setTimeout(atualizar, ms));
+    atualizar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
+})();
 
 // ===================================================
 // BOTÕES FLUTUANTES

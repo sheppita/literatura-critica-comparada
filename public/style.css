@@ -1347,3 +1347,78 @@ textarea {
   padding: 6px 14px;
   font-size: 0.82rem;
 }
+/* ===================================================
+   AULAS EM COLUNA ÚNICA
+   =================================================== */
+
+.grade-aulas {
+  grid-template-columns: 1fr !important;
+}
+
+/* ===================================================
+   CABEÇALHO STICKY FINO (encolhe ao rolar)
+   =================================================== */
+
+.cabecalho-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  background: var(--fundo);
+  border-bottom: 1px solid var(--borda);
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--verde);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateY(-100%);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  pointer-events: none;
+}
+
+.cabecalho-sticky.visivel {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.cabecalho-sticky a {
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.cabecalho-sticky a:hover {
+  color: var(--lilas);
+}
+
+/* Quando o cabeçalho sticky tá visível, o menu encosta nele */
+.menu-principal.fixo {
+  top: 45px;
+}
+
+/* ===================================================
+   RODAPÉ E LINKS CENTRALIZADOS
+   =================================================== */
+
+.rodape {
+  text-align: center;
+}
+
+.rodape p {
+  margin: 6px 0;
+}
+
+.rodape .link-voltar {
+  display: inline-block;
+  margin: 0 4px;
+}

@@ -130,6 +130,12 @@ function renderizarAulas() {
     return true;
   });
 
+  // Concluídas vão pro final (mas mantêm a ordem relativa)
+  aulasFiltradas.sort((a, b) => {
+    if (a.concluida === b.concluida) return 0;
+    return a.concluida ? 1 : -1;
+  });
+
   if (!aulasFiltradas.length) {
     const mensagens = {
       pendentes: 'Nenhuma aula pendente. Tudo em dia! 🌿',
@@ -140,9 +146,7 @@ function renderizarAulas() {
   }
 
   container.innerHTML = aulasFiltradas.map(aula => {
-    const preview = aula.conteudo
-      ? escapar(aula.conteudo).slice(0, 140) + (aula.conteudo.length > 140 ? '…' : '')
-      : '';
+    const preview = aula.conteudo ? escapar(aula.conteudo) : '';
 
     const classeConcluida = aula.concluida ? ' concluida' : '';
 
@@ -501,6 +505,41 @@ async function executarBusca(q) {
     resultados.innerHTML = `<div class="busca-vazio">Erro: ${escapar(e.message)}</div>`;
   }
 }
+
+// ===================================================
+// CABEÇALHO STICKY FINO
+// ===================================================
+(function ativarCabecalhoSticky() {
+  function atualizar() {
+    const barra = document.getElementById('cabecalho-sticky');
+    if (!barra) return;
+
+    const h1 = document.querySelector('.cabecalho h1, header h1');
+    const alvo = document.getElementById('cabecalho-sticky-titulo');
+    if (h1 && alvo) {
+      alvo.textContent = h1.textContent;
+    }
+
+    if (window.scrollY > 180) {
+      barra.classList.add('visivel');
+    } else {
+      barra.classList.remove('visivel');
+    }
+  }
+
+  function iniciar() {
+    window.addEventListener('scroll', atualizar, { passive: true });
+    window.addEventListener('resize', atualizar);
+    [100, 300, 600, 1000, 2000].forEach(ms => setTimeout(atualizar, ms));
+    atualizar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
+})();
 
 // ===================================================
 // BOTÕES FLUTUANTES
