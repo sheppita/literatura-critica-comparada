@@ -15,9 +15,35 @@ function normalizar(texto) {
   return String(texto)
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')   // remove acentos
-    .replace(/\s+/g, ' ')              // colapsa espaços
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
+}
+
+// ---------- UTIL: ordenação "natural" ----------
+// Se o título começa com número ("3 - Foo", "12. Bar"), ordena pelo número.
+// Senão, ordena alfabeticamente (ignorando acentos e maiúsculas).
+function ordenarPorTitulo(a, b) {
+  const extrairNumero = (t) => {
+    const match = String(t || '').match(/^\s*(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
+  const numA = extrairNumero(a.titulo);
+  const numB = extrairNumero(b.titulo);
+
+  // Se ambos começam com número, ordena por número
+  if (numA !== null && numB !== null) {
+    if (numA !== numB) return numA - numB;
+    return normalizar(a.titulo).localeCompare(normalizar(b.titulo));
+  }
+
+  // Se só um começa com número, o com número vem primeiro
+  if (numA !== null) return -1;
+  if (numB !== null) return 1;
+
+  // Senão, alfabético
+  return normalizar(a.titulo).localeCompare(normalizar(b.titulo));
 }
 
 // ---------- LOGIN ----------
@@ -43,30 +69,48 @@ router.get('/sessao', (req, res) => {
   res.json({ logada: req.cookies?.admin === process.env.SENHA_ADMIN });
 });
 
-// ---------- EMENTA COMPLETA (pública) ----------
+// ---------- EMENTA COMPLETA ----------
 router.get('/ementa', async (req, res) => {
   try {
     const eixos = (await pool.query('SELECT * FROM eixos ORDER BY numero')).rows;
-    const disciplinas = (await pool.query('SELECT * FROM disciplinas ORDER BY ordem, id')).rows;
-    const modulos = (await pool.query('SELECT * FROM modulos ORDER BY ordem, id')).rows;
-    const temas = (await pool.query('SELECT * FROM temas ORDER BY ordem, id')).rows;
-    const aulas = (await pool.query('SELECT * FROM aulas ORDER BY ordem, id')).rows;
+    const disciplinas = (await pool.query('SELECT * FROM disciplinas')).rows;
+    const modulos = (await pool.query('SELECT * FROM modulos')).rows;
+    const temas = (await pool.query('SELECT * FROM temas')).rows;
+    const aulas = (await pool.query('SELECT * FROM aulas')).rows;
+
+    // Anexa livros às aulas
+    const aulasIds = aulas.map(a => a.id);
+    let livros = [];
+    if (aulasIds.length) {
+      livros = (await pool.query(
+        'SELECT * FROM livros WHERE aula_id = ANY($1) ORDER BY id', [aulasIds]
+      )).rows;
+    }
 
     const arvore = eixos.map(e => ({
       ...e,
       disciplinas: disciplinas
         .filter(d => d.eixo_id === e.id)
+        .sort(ordenarPorTitulo)
         .map(d => ({
           ...d,
           modulos: modulos
             .filter(m => m.disciplina_id === d.id)
+            .sort(ordenarPorTitulo)
             .map(m => ({
               ...m,
               temas: temas
                 .filter(t => t.modulo_id === m.id)
+                .sort(ordenarPorTitulo)
                 .map(t => ({
                   ...t,
-                  aulas: aulas.filter(a => a.tema_id === t.id)
+                  aulas: aulas
+                    .filter(a => a.tema_id === t.id)
+                    .sort(ordenarPorTitulo)
+                    .map(a => ({
+                      ...a,
+                      livros: livros.filter(l => l.aula_id === a.id)
+                    }))
                 }))
             }))
         }))
@@ -84,11 +128,7 @@ router.get('/ementa', async (req, res) => {
 router.get('/disciplinas/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-
-    const disc = (await pool.query(
-      'SELECT * FROM disciplinas WHERE id = $1', [id]
-    )).rows[0];
-
+    const disc = (await pool.query('SELECT * FROM disciplinas WHERE id = $1', [id])).rows[0];
     if (!disc) return res.status(404).json({ erro: 'Disciplina não encontrada.' });
 
     const eixo = (await pool.query(
@@ -96,22 +136,26 @@ router.get('/disciplinas/:id', async (req, res) => {
     )).rows[0];
 
     const modulos = (await pool.query(
-      'SELECT * FROM modulos WHERE disciplina_id = $1 ORDER BY ordem, id', [id]
-    )).rows;
+      'SELECT * FROM modulos WHERE disciplina_id = $1', [id]
+    )).rows.sort(ordenarPorTitulo);
 
     const modulosIds = modulos.map(m => m.id);
-
-    let temas = [], aulas = [];
+    let temas = [], aulas = [], livros = [];
     if (modulosIds.length) {
       temas = (await pool.query(
-        'SELECT * FROM temas WHERE modulo_id = ANY($1) ORDER BY ordem, id', [modulosIds]
+        'SELECT * FROM temas WHERE modulo_id = ANY($1)', [modulosIds]
       )).rows;
-
       const temasIds = temas.map(t => t.id);
       if (temasIds.length) {
         aulas = (await pool.query(
-          'SELECT * FROM aulas WHERE tema_id = ANY($1) ORDER BY ordem, id', [temasIds]
+          'SELECT * FROM aulas WHERE tema_id = ANY($1)', [temasIds]
         )).rows;
+        const aulasIds = aulas.map(a => a.id);
+        if (aulasIds.length) {
+          livros = (await pool.query(
+            'SELECT * FROM livros WHERE aula_id = ANY($1)', [aulasIds]
+          )).rows;
+        }
       }
     }
 
@@ -122,9 +166,16 @@ router.get('/disciplinas/:id', async (req, res) => {
         ...m,
         temas: temas
           .filter(t => t.modulo_id === m.id)
+          .sort(ordenarPorTitulo)
           .map(t => ({
             ...t,
-            aulas: aulas.filter(a => a.tema_id === t.id)
+            aulas: aulas
+              .filter(a => a.tema_id === t.id)
+              .sort(ordenarPorTitulo)
+              .map(a => ({
+                ...a,
+                livros: livros.filter(l => l.aula_id === a.id)
+              }))
           }))
       }))
     });
@@ -137,11 +188,7 @@ router.get('/disciplinas/:id', async (req, res) => {
 router.get('/modulos/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-
-    const mod = (await pool.query(
-      'SELECT * FROM modulos WHERE id = $1', [id]
-    )).rows[0];
-
+    const mod = (await pool.query('SELECT * FROM modulos WHERE id = $1', [id])).rows[0];
     if (!mod) return res.status(404).json({ erro: 'Módulo não encontrado.' });
 
     const disc = (await pool.query(
@@ -153,15 +200,21 @@ router.get('/modulos/:id', async (req, res) => {
     )).rows[0] : null;
 
     const temas = (await pool.query(
-      'SELECT * FROM temas WHERE modulo_id = $1 ORDER BY ordem, id', [id]
-    )).rows;
+      'SELECT * FROM temas WHERE modulo_id = $1', [id]
+    )).rows.sort(ordenarPorTitulo);
 
     const temasIds = temas.map(t => t.id);
-    let aulas = [];
+    let aulas = [], livros = [];
     if (temasIds.length) {
       aulas = (await pool.query(
-        'SELECT * FROM aulas WHERE tema_id = ANY($1) ORDER BY ordem, id', [temasIds]
+        'SELECT * FROM aulas WHERE tema_id = ANY($1)', [temasIds]
       )).rows;
+      const aulasIds = aulas.map(a => a.id);
+      if (aulasIds.length) {
+        livros = (await pool.query(
+          'SELECT * FROM livros WHERE aula_id = ANY($1)', [aulasIds]
+        )).rows;
+      }
     }
 
     res.json({
@@ -170,7 +223,13 @@ router.get('/modulos/:id', async (req, res) => {
       eixo,
       temas: temas.map(t => ({
         ...t,
-        aulas: aulas.filter(a => a.tema_id === t.id)
+        aulas: aulas
+          .filter(a => a.tema_id === t.id)
+          .sort(ordenarPorTitulo)
+          .map(a => ({
+            ...a,
+            livros: livros.filter(l => l.aula_id === a.id)
+          }))
       }))
     });
   } catch (e) {
@@ -182,11 +241,7 @@ router.get('/modulos/:id', async (req, res) => {
 router.get('/temas/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-
-    const tema = (await pool.query(
-      'SELECT * FROM temas WHERE id = $1', [id]
-    )).rows[0];
-
+    const tema = (await pool.query('SELECT * FROM temas WHERE id = $1', [id])).rows[0];
     if (!tema) return res.status(404).json({ erro: 'Tema não encontrado.' });
 
     const mod = (await pool.query(
@@ -202,10 +257,9 @@ router.get('/temas/:id', async (req, res) => {
     )).rows[0] : null;
 
     const aulas = (await pool.query(
-      'SELECT * FROM aulas WHERE tema_id = $1 ORDER BY ordem, id', [id]
-    )).rows;
+      'SELECT * FROM aulas WHERE tema_id = $1', [id]
+    )).rows.sort(ordenarPorTitulo);
 
-    // Anexa livros a cada aula
     const aulasIds = aulas.map(a => a.id);
     let livros = [];
     if (aulasIds.length) {
@@ -269,19 +323,19 @@ router.get('/buscar', async (req, res) => {
 // CADASTRO — DISCIPLINAS
 // ===================================================
 router.post('/disciplinas', exigirLogin, async (req, res) => {
-  const { eixo_id, titulo, descricao, ordem } = req.body;
+  const { eixo_id, titulo, descricao } = req.body;
   const { rows } = await pool.query(
-    'INSERT INTO disciplinas (eixo_id, titulo, descricao, ordem) VALUES ($1,$2,$3,$4) RETURNING *',
-    [eixo_id, titulo, descricao, ordem || 0]
+    'INSERT INTO disciplinas (eixo_id, titulo, descricao) VALUES ($1,$2,$3) RETURNING *',
+    [eixo_id, titulo, descricao]
   );
   res.json(rows[0]);
 });
 
 router.put('/disciplinas/:id', exigirLogin, async (req, res) => {
-  const { titulo, descricao, ordem } = req.body;
+  const { titulo, descricao } = req.body;
   const { rows } = await pool.query(
-    'UPDATE disciplinas SET titulo=$1, descricao=$2, ordem=$3 WHERE id=$4 RETURNING *',
-    [titulo, descricao, ordem || 0, req.params.id]
+    'UPDATE disciplinas SET titulo=$1, descricao=$2 WHERE id=$3 RETURNING *',
+    [titulo, descricao, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ erro: 'Disciplina não encontrada.' });
   res.json(rows[0]);
@@ -294,19 +348,19 @@ router.delete('/disciplinas/:id', exigirLogin, async (req, res) => {
 
 // ---------- MÓDULOS ----------
 router.post('/modulos', exigirLogin, async (req, res) => {
-  const { disciplina_id, titulo, descricao, ordem } = req.body;
+  const { disciplina_id, titulo, descricao } = req.body;
   const { rows } = await pool.query(
-    'INSERT INTO modulos (disciplina_id, titulo, descricao, ordem) VALUES ($1,$2,$3,$4) RETURNING *',
-    [disciplina_id, titulo, descricao, ordem || 0]
+    'INSERT INTO modulos (disciplina_id, titulo, descricao) VALUES ($1,$2,$3) RETURNING *',
+    [disciplina_id, titulo, descricao]
   );
   res.json(rows[0]);
 });
 
 router.put('/modulos/:id', exigirLogin, async (req, res) => {
-  const { titulo, descricao, ordem } = req.body;
+  const { titulo, descricao } = req.body;
   const { rows } = await pool.query(
-    'UPDATE modulos SET titulo=$1, descricao=$2, ordem=$3 WHERE id=$4 RETURNING *',
-    [titulo, descricao, ordem || 0, req.params.id]
+    'UPDATE modulos SET titulo=$1, descricao=$2 WHERE id=$3 RETURNING *',
+    [titulo, descricao, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ erro: 'Módulo não encontrado.' });
   res.json(rows[0]);
@@ -319,19 +373,19 @@ router.delete('/modulos/:id', exigirLogin, async (req, res) => {
 
 // ---------- TEMAS ----------
 router.post('/temas', exigirLogin, async (req, res) => {
-  const { modulo_id, titulo, descricao, ordem } = req.body;
+  const { modulo_id, titulo, descricao } = req.body;
   const { rows } = await pool.query(
-    'INSERT INTO temas (modulo_id, titulo, descricao, ordem) VALUES ($1,$2,$3,$4) RETURNING *',
-    [modulo_id, titulo, descricao, ordem || 0]
+    'INSERT INTO temas (modulo_id, titulo, descricao) VALUES ($1,$2,$3) RETURNING *',
+    [modulo_id, titulo, descricao]
   );
   res.json(rows[0]);
 });
 
 router.put('/temas/:id', exigirLogin, async (req, res) => {
-  const { titulo, descricao, ordem } = req.body;
+  const { titulo, descricao } = req.body;
   const { rows } = await pool.query(
-    'UPDATE temas SET titulo=$1, descricao=$2, ordem=$3 WHERE id=$4 RETURNING *',
-    [titulo, descricao, ordem || 0, req.params.id]
+    'UPDATE temas SET titulo=$1, descricao=$2 WHERE id=$3 RETURNING *',
+    [titulo, descricao, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ erro: 'Tema não encontrado.' });
   res.json(rows[0]);
@@ -344,19 +398,19 @@ router.delete('/temas/:id', exigirLogin, async (req, res) => {
 
 // ---------- AULAS ----------
 router.post('/aulas', exigirLogin, async (req, res) => {
-  const { tema_id, titulo, conteudo, links, ordem } = req.body;
+  const { tema_id, titulo, conteudo } = req.body;
   const { rows } = await pool.query(
-    'INSERT INTO aulas (tema_id, titulo, conteudo, links, ordem) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-    [tema_id, titulo, conteudo, links, ordem || 0]
+    'INSERT INTO aulas (tema_id, titulo, conteudo) VALUES ($1,$2,$3) RETURNING *',
+    [tema_id, titulo, conteudo]
   );
   res.json(rows[0]);
 });
 
 router.put('/aulas/:id', exigirLogin, async (req, res) => {
-  const { titulo, conteudo, links } = req.body;
+  const { titulo, conteudo } = req.body;
   const { rows } = await pool.query(
-    'UPDATE aulas SET titulo=$1, conteudo=$2, links=$3 WHERE id=$4 RETURNING *',
-    [titulo, conteudo, links, req.params.id]
+    'UPDATE aulas SET titulo=$1, conteudo=$2 WHERE id=$3 RETURNING *',
+    [titulo, conteudo, req.params.id]
   );
   res.json(rows[0]);
 });
@@ -384,15 +438,12 @@ router.delete('/aulas/:id', exigirLogin, async (req, res) => {
 // LIVROS / BIBLIOGRAFIA
 // ===================================================
 
-// Lista TODOS os livros com contexto (aula, tema, módulo, disciplina, eixo)
-// + flag de repetido (mesmo título + autor + capítulo em outra aula)
 router.get('/livros', async (req, res) => {
   try {
     const sql = `
       SELECT
         l.*,
         a.titulo  AS aula_titulo,
-        a.id      AS aula_id,
         t.id      AS tema_id,
         t.titulo  AS tema_titulo,
         m.id      AS modulo_id,
@@ -407,34 +458,21 @@ router.get('/livros', async (req, res) => {
       JOIN modulos m     ON m.id = t.modulo_id
       JOIN disciplinas d ON d.id = m.disciplina_id
       JOIN eixos e       ON e.id = d.eixo_id
-      ORDER BY l.criado_em DESC, l.id DESC
+      ORDER BY l.id DESC
     `;
     const { rows } = await pool.query(sql);
 
-    // Detecta repetidos: mesma normalização de título+autor+capítulo
     const mapa = new Map();
     rows.forEach(l => {
-      const chave = [
-        normalizar(l.titulo),
-        normalizar(l.autor),
-        normalizar(l.capitulo)
-      ].join('||');
+      const chave = [normalizar(l.titulo), normalizar(l.autor), normalizar(l.capitulo)].join('||');
       if (!mapa.has(chave)) mapa.set(chave, []);
       mapa.get(chave).push(l.id);
     });
 
     const comFlag = rows.map(l => {
-      const chave = [
-        normalizar(l.titulo),
-        normalizar(l.autor),
-        normalizar(l.capitulo)
-      ].join('||');
+      const chave = [normalizar(l.titulo), normalizar(l.autor), normalizar(l.capitulo)].join('||');
       const ids = mapa.get(chave) || [];
-      return {
-        ...l,
-        repetido: ids.length > 1,
-        ocorrencias: ids.length
-      };
+      return { ...l, repetido: ids.length > 1, ocorrencias: ids.length };
     });
 
     res.json(comFlag);
@@ -444,7 +482,6 @@ router.get('/livros', async (req, res) => {
   }
 });
 
-// Lista livros de UMA aula + avisa se já foi usado em outra
 router.get('/aulas/:id/livros', async (req, res) => {
   try {
     const aulaId = Number(req.params.id);
@@ -453,7 +490,6 @@ router.get('/aulas/:id/livros', async (req, res) => {
       'SELECT * FROM livros WHERE aula_id = $1 ORDER BY id', [aulaId]
     )).rows;
 
-    // Pra cada livro, busca em outras aulas
     const resultado = [];
     for (const l of meus) {
       const outros = (await pool.query(
@@ -486,14 +522,11 @@ router.get('/aulas/:id/livros', async (req, res) => {
   }
 });
 
-// Criar livro
 router.post('/livros', exigirLogin, async (req, res) => {
   const { aula_id, titulo, autor, capitulo, descricao_capitulo, tipo, observacoes } = req.body;
-
   if (!aula_id || !titulo || !tipo) {
     return res.status(400).json({ erro: 'Aula, título e tipo são obrigatórios.' });
   }
-
   try {
     const { rows } = await pool.query(
       `INSERT INTO livros (aula_id, titulo, autor, capitulo, descricao_capitulo, tipo, observacoes)
@@ -507,10 +540,8 @@ router.post('/livros', exigirLogin, async (req, res) => {
   }
 });
 
-// Editar livro
 router.put('/livros/:id', exigirLogin, async (req, res) => {
   const { titulo, autor, capitulo, descricao_capitulo, tipo, observacoes } = req.body;
-
   try {
     const { rows } = await pool.query(
       `UPDATE livros
@@ -526,7 +557,6 @@ router.put('/livros/:id', exigirLogin, async (req, res) => {
   }
 });
 
-// Excluir livro
 router.delete('/livros/:id', exigirLogin, async (req, res) => {
   await pool.query('DELETE FROM livros WHERE id = $1', [req.params.id]);
   res.json({ ok: true });

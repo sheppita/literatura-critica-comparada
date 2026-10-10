@@ -59,6 +59,14 @@
     </ul>
   </nav>
 
+  <div class="busca-container">
+    <span class="busca-icone" aria-hidden="true">🔍</span>
+    <input type="search" id="busca-input" class="busca-input"
+      placeholder="Buscar disciplina, módulo, tema, aula…" autocomplete="off"
+      aria-label="Buscar na ementa">
+    <div id="busca-resultados" class="busca-resultados" role="listbox"></div>
+  </div>
+
   <main id="conteudo" class="conteudo">
     <div id="mensagem" class="mensagem" role="status" aria-live="polite" hidden></div>
 
@@ -86,7 +94,7 @@
       </div>
 
       <div id="aulas" class="grade-aulas" aria-busy="true">
-         <p>Carregando…</p>
+        <p>Carregando…</p>
       </div>
 
       <div class="acoes-item" id="acoes-tema" hidden>
@@ -133,7 +141,6 @@
     </form>
   </dialog>
 
-  <!-- Dialog: adicionar aula -->
   <dialog id="dialogo-editor" aria-labelledby="titulo-editor">
     <form id="form-editor">
       <h2 id="titulo-editor">Adicionar aula</h2>
@@ -141,16 +148,10 @@
       <label for="campo-titulo">Título da aula</label>
       <input id="campo-titulo" name="titulo" type="text" maxlength="500" required>
 
-      <label for="campo-anotacoes">Conteúdo / anotações</label>
+      <label for="campo-anotacoes">Descrição</label>
       <textarea id="campo-anotacoes" name="anotacoes" rows="6" maxlength="50000"></textarea>
 
-      <label for="campo-links">Links e materiais — um por linha</label>
-      <textarea id="campo-links" name="links" rows="4" maxlength="20000"></textarea>
-
-      <label for="campo-ordem">Ordem de apresentação</label>
-      <input id="campo-ordem" name="ordem" type="number" min="0" max="1000000" step="1" value="0" required>
-
-      <p class="ajuda">Apenas o título é obrigatório.</p>
+      <p class="ajuda">Apenas o título é obrigatório. A ordenação é automática.</p>
 
       <p id="erro-editor" class="erro" role="alert" hidden></p>
 
@@ -161,7 +162,6 @@
     </form>
   </dialog>
 
-  <!-- Dialog: editar aula -->
   <dialog id="dialogo-editar-aula" aria-labelledby="titulo-editar-aula">
     <form id="form-editar-aula">
       <h2 id="titulo-editar-aula">Editar aula</h2>
@@ -169,11 +169,8 @@
       <label for="editar-titulo">Título da aula</label>
       <input id="editar-titulo" name="titulo" type="text" maxlength="500" required>
 
-      <label for="editar-anotacoes">Conteúdo / anotações</label>
+      <label for="editar-anotacoes">Descrição</label>
       <textarea id="editar-anotacoes" name="anotacoes" rows="6" maxlength="50000"></textarea>
-
-      <label for="editar-links">Links e materiais — um por linha</label>
-      <textarea id="editar-links" name="links" rows="4" maxlength="20000"></textarea>
 
       <p id="erro-editar-aula" class="erro" role="alert" hidden></p>
 
@@ -184,7 +181,6 @@
     </form>
   </dialog>
 
-  <!-- Dialog: adicionar/editar livro -->
   <dialog id="dialogo-livro" aria-labelledby="titulo-livro">
     <form id="form-livro">
       <h2 id="titulo-livro">Adicionar livro</h2>

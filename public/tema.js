@@ -1,6 +1,5 @@
 // ===================================================
 // TEMA.JS — Página de um tema
-// Aulas + filtros + concluída + bibliografia (livros)
 // ===================================================
 
 const API = '/api';
@@ -9,11 +8,11 @@ let temaAtual = null;
 let ementaAtual = [];
 let estaLogada = false;
 let aulaEditandoId = null;
-let aulaAtualLivros = null;   // aula em que estamos mexendo nos livros
+let aulaAtualLivros = null;
 let livroEditandoId = null;
 let filtroAtual = 'todas';
+let timeoutBusca = null;
 
-// ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
   const resp = await fetch(API + caminho, {
     headers: { 'Content-Type': 'application/json' },
@@ -50,7 +49,6 @@ function pegarId() {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-// ---------- CARREGAR TEMA ----------
 async function carregarTema() {
   const id = pegarId();
   const container = document.getElementById('aulas');
@@ -106,7 +104,6 @@ async function carregarTema() {
   }
 }
 
-// ---------- CONTAGENS DO FILTRO ----------
 function atualizarContagens() {
   const total = temaAtual.aulas.length;
   const concluidas = temaAtual.aulas.filter(a => a.concluida).length;
@@ -120,7 +117,6 @@ function atualizarContagens() {
   document.querySelector('[data-contagem="concluidas"]').textContent = concluidas;
 }
 
-// ---------- RENDERIZAR AULAS ----------
 function renderizarAulas() {
   const container = document.getElementById('aulas');
   if (!temaAtual || !temaAtual.aulas.length) {
@@ -144,11 +140,6 @@ function renderizarAulas() {
   }
 
   container.innerHTML = aulasFiltradas.map(aula => {
-    const linksCount = (aula.links || '')
-      .split('\n').map(l => l.trim()).filter(Boolean).length;
-    const textoLinks = linksCount === 0
-      ? 'Sem links' : linksCount === 1 ? '1 link' : `${linksCount} links`;
-
     const preview = aula.conteudo
       ? escapar(aula.conteudo).slice(0, 140) + (aula.conteudo.length > 140 ? '…' : '')
       : '';
@@ -167,7 +158,6 @@ function renderizarAulas() {
         <span class="cartao-numero">Aula</span>
         <h3 class="cartao-titulo">${escapar(aula.titulo)}</h3>
         ${preview ? `<p class="cartao-preview">${preview}</p>` : ''}
-        <span class="cartao-contagem">${textoLinks}</span>
 
         ${renderizarLivrosDaAula(aula)}
 
@@ -181,7 +171,6 @@ function renderizarAulas() {
     `;
   }).join('');
 
-  // Eventos
   container.querySelectorAll('[data-acao="editar-aula"]').forEach(btn =>
     btn.addEventListener('click', abrirEditorEdicao));
   container.querySelectorAll('[data-acao="excluir-aula"]').forEach(btn =>
@@ -196,7 +185,6 @@ function renderizarAulas() {
     btn.addEventListener('click', excluirLivro));
 }
 
-// ---------- LIVROS DENTRO DA AULA ----------
 function renderizarLivrosDaAula(aula) {
   const livros = aula.livros || [];
   if (!livros.length && !estaLogada) return '';
@@ -240,7 +228,6 @@ function renderizarLivrosDaAula(aula) {
   `;
 }
 
-// ---------- TOGGLE CONCLUÍDA ----------
 async function toggleConcluida(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   try {
@@ -251,7 +238,6 @@ async function toggleConcluida(evento) {
   }
 }
 
-// ---------- SUBMENU ----------
 async function carregarSubmenuEixos() {
   try {
     ementaAtual = await api('/ementa');
@@ -267,7 +253,6 @@ async function carregarSubmenuEixos() {
   } catch {}
 }
 
-// ---------- LOGIN ----------
 async function verificarSessao() {
   try {
     const r = await api('/sessao');
@@ -280,7 +265,7 @@ async function verificarSessao() {
   } catch {}
 }
 
-// ---------- AULA: ADICIONAR ----------
+// ---------- AULA ----------
 function abrirEditorNova() {
   const dialog = document.getElementById('dialogo-editor');
   const form = document.getElementById('form-editor');
@@ -297,9 +282,7 @@ async function salvarNovaAula(evento) {
   const dados = {
     tema_id: temaAtual.id,
     titulo: form.titulo.value.trim(),
-    conteudo: form.anotacoes?.value.trim() || null,
-    links: form.links?.value.trim() || null,
-    ordem: Number(form.ordem.value) || 0
+    conteudo: form.anotacoes?.value.trim() || null
   };
 
   try {
@@ -313,7 +296,6 @@ async function salvarNovaAula(evento) {
   }
 }
 
-// ---------- AULA: EDITAR ----------
 function abrirEditorEdicao(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   const aula = temaAtual.aulas.find(a => a.id === id);
@@ -327,7 +309,6 @@ function abrirEditorEdicao(evento) {
 
   form.titulo.value = aula.titulo || '';
   form.anotacoes.value = aula.conteudo || '';
-  form.links.value = aula.links || '';
 
   dialog.showModal();
 }
@@ -339,8 +320,7 @@ async function salvarEdicaoAula(evento) {
   const form = evento.target;
   const dados = {
     titulo: form.titulo.value.trim(),
-    conteudo: form.anotacoes?.value.trim() || null,
-    links: form.links?.value.trim() || null
+    conteudo: form.anotacoes?.value.trim() || null
   };
 
   try {
@@ -355,7 +335,6 @@ async function salvarEdicaoAula(evento) {
   }
 }
 
-// ---------- AULA: EXCLUIR ----------
 async function excluirAula(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   if (!confirm('Excluir essa aula? Apaga também os livros vinculados. Não tem volta.')) return;
@@ -388,7 +367,7 @@ async function excluirTema() {
   }
 }
 
-// ---------- LIVRO: ADICIONAR / EDITAR ----------
+// ---------- LIVRO ----------
 function abrirEditorLivro(evento) {
   aulaAtualLivros = Number(evento.currentTarget.dataset.id);
   livroEditandoId = null;
@@ -403,7 +382,6 @@ function abrirEditorLivro(evento) {
 
 function editarLivro(evento) {
   const id = Number(evento.currentTarget.dataset.id);
-  // Encontra o livro percorrendo aulas
   let livro = null;
   for (const aula of temaAtual.aulas) {
     const l = (aula.livros || []).find(x => x.id === id);
@@ -474,6 +452,56 @@ async function excluirLivro(evento) {
   }
 }
 
+// ---------- BUSCA ----------
+function configurarBusca() {
+  const input = document.getElementById('busca-input');
+  const resultados = document.getElementById('busca-resultados');
+  if (!input || !resultados) return;
+
+  input.addEventListener('input', () => {
+    clearTimeout(timeoutBusca);
+    const q = input.value.trim();
+    if (!q) { resultados.innerHTML = ''; return; }
+    timeoutBusca = setTimeout(() => executarBusca(q), 250);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.busca-container')) resultados.innerHTML = '';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = ''; resultados.innerHTML = ''; input.blur();
+    }
+  });
+}
+
+async function executarBusca(q) {
+  const resultados = document.getElementById('busca-resultados');
+  try {
+    const itens = await api(`/buscar?q=${encodeURIComponent(q)}`);
+    if (!itens.length) {
+      resultados.innerHTML = '<div class="busca-vazio">Nada encontrado por aqui…</div>';
+      return;
+    }
+    resultados.innerHTML = itens.map(item => {
+      let url = item.url;
+      if (!url) {
+        if (item.tipo === 'eixo') url = `/eixo.html?numero=${item.id}`;
+        else url = '/';
+      }
+      return `
+        <a class="busca-item" href="${url}">
+          <span class="busca-item-tipo" data-tipo="${item.tipo}">${item.tipo}</span>
+          ${escapar(item.titulo)}
+        </a>
+      `;
+    }).join('');
+  } catch (e) {
+    resultados.innerHTML = `<div class="busca-vazio">Erro: ${escapar(e.message)}</div>`;
+  }
+}
+
 // ===================================================
 // BOTÕES FLUTUANTES
 // ===================================================
@@ -517,8 +545,8 @@ async function excluirLivro(evento) {
 document.addEventListener('DOMContentLoaded', async () => {
   await verificarSessao();
   await carregarTema();
+  configurarBusca();
 
-  // Login
   const dlgLogin = document.getElementById('dialogo-login');
   document.getElementById('abrir-login').addEventListener('click', () => dlgLogin.showModal());
   document.getElementById('cancelar-login').addEventListener('click', () => dlgLogin.close());
@@ -539,7 +567,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Logout
   document.getElementById('sair').addEventListener('click', async () => {
     await api('/logout', { method: 'POST' });
     estaLogada = false;
@@ -548,24 +575,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     mostrarMensagem('Sessão encerrada.');
   });
 
-  // Adicionar / excluir tema
   document.getElementById('btn-add-aula').addEventListener('click', abrirEditorNova);
   document.getElementById('btn-excluir-tema').addEventListener('click', excluirTema);
 
-  // Editor aula (adicionar)
   document.getElementById('form-editor').addEventListener('submit', salvarNovaAula);
   document.getElementById('cancelar-editor').addEventListener('click', () => {
     document.getElementById('dialogo-editor').close();
   });
 
-  // Editor aula (editar)
   document.getElementById('form-editar-aula').addEventListener('submit', salvarEdicaoAula);
   document.getElementById('cancelar-editar-aula').addEventListener('click', () => {
     document.getElementById('dialogo-editar-aula').close();
     aulaEditandoId = null;
   });
 
-  // Editor livro
   document.getElementById('form-livro').addEventListener('submit', salvarLivro);
   document.getElementById('cancelar-livro').addEventListener('click', () => {
     document.getElementById('dialogo-livro').close();
@@ -573,7 +596,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     aulaAtualLivros = null;
   });
 
-  // Filtros de aula
   document.querySelectorAll('.filtro-capsula').forEach(btn => {
     btn.addEventListener('click', () => {
       filtroAtual = btn.dataset.filtro;
@@ -585,7 +607,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Menu suspenso
   const botaoEixos = document.getElementById('botao-eixos');
   const submenuEixos = document.getElementById('submenu-eixos');
   if (botaoEixos && submenuEixos) {
@@ -603,7 +624,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Backup
   const botaoBackup = document.getElementById('botao-backup');
   if (botaoBackup) {
     botaoBackup.addEventListener('click', async () => {

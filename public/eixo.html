@@ -50,6 +50,14 @@
     </ul>
   </nav>
 
+  <div class="busca-container">
+    <span class="busca-icone" aria-hidden="true">🔍</span>
+    <input type="search" id="busca-input" class="busca-input"
+      placeholder="Buscar disciplina, módulo, tema, aula…" autocomplete="off"
+      aria-label="Buscar na ementa">
+    <div id="busca-resultados" class="busca-resultados" role="listbox"></div>
+  </div>
+
   <main id="conteudo" class="conteudo">
     <div id="mensagem" class="mensagem" role="status" aria-live="polite" hidden></div>
 
@@ -103,13 +111,10 @@
       <label for="campo-titulo">Título</label>
       <input id="campo-titulo" name="titulo" type="text" maxlength="500" required>
 
-      <label for="campo-descricao">Descrição ou ementa</label>
+      <label for="campo-descricao">Descrição</label>
       <textarea id="campo-descricao" name="descricao" rows="5" maxlength="50000"></textarea>
 
-      <label for="campo-ordem">Ordem de apresentação</label>
-      <input id="campo-ordem" name="ordem" type="number" min="0" max="1000000" step="1" value="0" required>
-
-      <p class="ajuda">Apenas o título é obrigatório.</p>
+      <p class="ajuda">Apenas o título é obrigatório. A ordenação é automática.</p>
 
       <p id="erro-editor" class="erro" role="alert" hidden></p>
 

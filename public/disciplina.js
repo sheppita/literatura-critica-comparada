@@ -1,6 +1,5 @@
 // ===================================================
 // DISCIPLINA.JS — Página de uma disciplina
-// Cards de módulo + editar/excluir quando logada
 // ===================================================
 
 const API = '/api';
@@ -9,8 +8,8 @@ let disciplinaAtual = null;
 let ementaAtual = [];
 let estaLogada = false;
 let moduloEditandoId = null;
+let timeoutBusca = null;
 
-// ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
   const resp = await fetch(API + caminho, {
     headers: { 'Content-Type': 'application/json' },
@@ -47,7 +46,6 @@ function pegarId() {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-// ---------- CARREGAR ----------
 async function carregarDisciplina() {
   const id = pegarId();
   const container = document.getElementById('modulos');
@@ -72,11 +70,9 @@ async function carregarDisciplina() {
     }
 
     if (disciplinaAtual.eixo) {
-      const linkTopo = document.getElementById('link-eixo');
-      const linkRodape = document.getElementById('link-eixo-rodape');
       const urlEixo = `/eixo.html?numero=${disciplinaAtual.eixo.numero}`;
-      linkTopo.href = urlEixo;
-      linkRodape.href = urlEixo;
+      document.getElementById('link-eixo').href = urlEixo;
+      document.getElementById('link-eixo-rodape').href = urlEixo;
       document.getElementById('link-eixo-container').hidden = false;
       document.getElementById('link-eixo-rodape-container').hidden = false;
     }
@@ -90,7 +86,6 @@ async function carregarDisciplina() {
   }
 }
 
-// ---------- RENDERIZAR MÓDULOS ----------
 function renderizarModulos() {
   const container = document.getElementById('modulos');
   if (!disciplinaAtual || !disciplinaAtual.modulos.length) {
@@ -99,8 +94,7 @@ function renderizarModulos() {
   }
 
   container.innerHTML = disciplinaAtual.modulos.map(mod => {
-    let total = 0;
-    let concluidas = 0;
+    let total = 0, concluidas = 0;
     mod.temas.forEach(t => {
       t.aulas.forEach(a => {
         total++;
@@ -129,15 +123,12 @@ function renderizarModulos() {
     `;
   }).join('');
 
-  container.querySelectorAll('[data-acao="editar-modulo"]').forEach(btn => {
-    btn.addEventListener('click', abrirEditorEdicao);
-  });
-  container.querySelectorAll('[data-acao="excluir-modulo"]').forEach(btn => {
-    btn.addEventListener('click', excluirModulo);
-  });
+  container.querySelectorAll('[data-acao="editar-modulo"]').forEach(btn =>
+    btn.addEventListener('click', abrirEditorEdicao));
+  container.querySelectorAll('[data-acao="excluir-modulo"]').forEach(btn =>
+    btn.addEventListener('click', excluirModulo));
 }
 
-// ---------- SUBMENU ----------
 async function carregarSubmenuEixos() {
   try {
     ementaAtual = await api('/ementa');
@@ -153,7 +144,6 @@ async function carregarSubmenuEixos() {
   } catch {}
 }
 
-// ---------- LOGIN ----------
 async function verificarSessao() {
   try {
     const r = await api('/sessao');
@@ -166,7 +156,6 @@ async function verificarSessao() {
   } catch {}
 }
 
-// ---------- ADICIONAR ----------
 function abrirEditorNova() {
   moduloEditandoId = null;
   const dialog = document.getElementById('dialogo-editor');
@@ -177,7 +166,6 @@ function abrirEditorNova() {
   dialog.showModal();
 }
 
-// ---------- EDITAR ----------
 function abrirEditorEdicao(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   const mod = disciplinaAtual.modulos.find(m => m.id === id);
@@ -192,7 +180,6 @@ function abrirEditorEdicao(evento) {
 
   form.titulo.value = mod.titulo || '';
   form.descricao.value = mod.descricao || '';
-  form.ordem.value = mod.ordem || 0;
 
   dialog.showModal();
 }
@@ -204,8 +191,7 @@ async function salvarEditor(evento) {
   const form = evento.target;
   const dados = {
     titulo: form.titulo.value.trim(),
-    descricao: form.descricao?.value.trim() || null,
-    ordem: Number(form.ordem.value) || 0
+    descricao: form.descricao?.value.trim() || null
   };
 
   try {
@@ -226,7 +212,6 @@ async function salvarEditor(evento) {
   }
 }
 
-// ---------- EXCLUIR ----------
 async function excluirModulo(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   if (!confirm('Excluir esse módulo? Apaga temas e aulas dentro. Não tem volta.')) return;
@@ -258,6 +243,56 @@ async function excluirDisciplina() {
   }
 }
 
+// ---------- BUSCA ----------
+function configurarBusca() {
+  const input = document.getElementById('busca-input');
+  const resultados = document.getElementById('busca-resultados');
+  if (!input || !resultados) return;
+
+  input.addEventListener('input', () => {
+    clearTimeout(timeoutBusca);
+    const q = input.value.trim();
+    if (!q) { resultados.innerHTML = ''; return; }
+    timeoutBusca = setTimeout(() => executarBusca(q), 250);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.busca-container')) resultados.innerHTML = '';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = ''; resultados.innerHTML = ''; input.blur();
+    }
+  });
+}
+
+async function executarBusca(q) {
+  const resultados = document.getElementById('busca-resultados');
+  try {
+    const itens = await api(`/buscar?q=${encodeURIComponent(q)}`);
+    if (!itens.length) {
+      resultados.innerHTML = '<div class="busca-vazio">Nada encontrado por aqui…</div>';
+      return;
+    }
+    resultados.innerHTML = itens.map(item => {
+      let url = item.url;
+      if (!url) {
+        if (item.tipo === 'eixo') url = `/eixo.html?numero=${item.id}`;
+        else url = '/';
+      }
+      return `
+        <a class="busca-item" href="${url}">
+          <span class="busca-item-tipo" data-tipo="${item.tipo}">${item.tipo}</span>
+          ${escapar(item.titulo)}
+        </a>
+      `;
+    }).join('');
+  } catch (e) {
+    resultados.innerHTML = `<div class="busca-vazio">Erro: ${escapar(e.message)}</div>`;
+  }
+}
+
 // ===================================================
 // BOTÕES FLUTUANTES
 // ===================================================
@@ -267,11 +302,8 @@ async function excluirDisciplina() {
     if (!container) return;
     const altura = document.documentElement.scrollHeight;
     const janela = window.innerHeight;
-    if (altura > janela + 200) {
-      container.classList.add('visivel');
-    } else {
-      container.classList.remove('visivel');
-    }
+    if (altura > janela + 200) container.classList.add('visivel');
+    else container.classList.remove('visivel');
   }
 
   function iniciar() {
@@ -304,8 +336,8 @@ async function excluirDisciplina() {
 document.addEventListener('DOMContentLoaded', async () => {
   await verificarSessao();
   await carregarDisciplina();
+  configurarBusca();
 
-  // --- Login ---
   const dlgLogin = document.getElementById('dialogo-login');
   document.getElementById('abrir-login').addEventListener('click', () => dlgLogin.showModal());
   document.getElementById('cancelar-login').addEventListener('click', () => dlgLogin.close());
@@ -326,7 +358,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- Logout ---
   document.getElementById('sair').addEventListener('click', async () => {
     await api('/logout', { method: 'POST' });
     estaLogada = false;
@@ -335,18 +366,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     mostrarMensagem('Sessão encerrada.');
   });
 
-  // --- Botões ---
   document.getElementById('btn-add-modulo').addEventListener('click', abrirEditorNova);
   document.getElementById('btn-excluir-disciplina').addEventListener('click', excluirDisciplina);
 
-  // --- Editor ---
   document.getElementById('form-editor').addEventListener('submit', salvarEditor);
   document.getElementById('cancelar-editor').addEventListener('click', () => {
     document.getElementById('dialogo-editor').close();
     moduloEditandoId = null;
   });
 
-  // --- Menu suspenso ---
   const botaoEixos = document.getElementById('botao-eixos');
   const submenuEixos = document.getElementById('submenu-eixos');
   if (botaoEixos && submenuEixos) {
@@ -364,7 +392,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- Backup ---
   const botaoBackup = document.getElementById('botao-backup');
   if (botaoBackup) {
     botaoBackup.addEventListener('click', async () => {

@@ -1,6 +1,5 @@
 // ===================================================
 // EIXO.JS — Página individual de um eixo
-// Cards de disciplina + editar/excluir quando logada
 // ===================================================
 
 const API = '/api';
@@ -9,6 +8,7 @@ let ementaAtual = [];
 let eixoAtual = null;
 let estaLogada = false;
 let disciplinaEditandoId = null;
+let timeoutBusca = null;
 
 // ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
@@ -47,7 +47,7 @@ function pegarNumeroDoEixo() {
   return Number.isInteger(num) && num >= 1 && num <= 9 ? num : null;
 }
 
-// ---------- CARREGAR ----------
+// ---------- CARREGAR EIXO ----------
 async function carregarEixo() {
   const numero = pegarNumeroDoEixo();
   const container = document.getElementById('disciplinas');
@@ -90,8 +90,7 @@ function renderizarDisciplinas() {
   }
 
   container.innerHTML = eixoAtual.disciplinas.map(disc => {
-    let total = 0;
-    let concluidas = 0;
+    let total = 0, concluidas = 0;
     disc.modulos.forEach(m => {
       m.temas.forEach(t => {
         t.aulas.forEach(a => {
@@ -122,12 +121,10 @@ function renderizarDisciplinas() {
     `;
   }).join('');
 
-  container.querySelectorAll('[data-acao="editar-disciplina"]').forEach(btn => {
-    btn.addEventListener('click', abrirEditorEdicao);
-  });
-  container.querySelectorAll('[data-acao="excluir-disciplina"]').forEach(btn => {
-    btn.addEventListener('click', excluirDisciplina);
-  });
+  container.querySelectorAll('[data-acao="editar-disciplina"]').forEach(btn =>
+    btn.addEventListener('click', abrirEditorEdicao));
+  container.querySelectorAll('[data-acao="excluir-disciplina"]').forEach(btn =>
+    btn.addEventListener('click', excluirDisciplina));
 }
 
 // ---------- SUBMENU ----------
@@ -183,7 +180,6 @@ function abrirEditorEdicao(evento) {
 
   form.titulo.value = disc.titulo || '';
   form.descricao.value = disc.descricao || '';
-  form.ordem.value = disc.ordem || 0;
 
   dialog.showModal();
 }
@@ -195,8 +191,7 @@ async function salvarEditor(evento) {
   const form = evento.target;
   const dados = {
     titulo: form.titulo.value.trim(),
-    descricao: form.descricao?.value.trim() || null,
-    ordem: Number(form.ordem.value) || 0
+    descricao: form.descricao?.value.trim() || null
   };
 
   try {
@@ -230,6 +225,56 @@ async function excluirDisciplina(evento) {
   }
 }
 
+// ---------- BUSCA ----------
+function configurarBusca() {
+  const input = document.getElementById('busca-input');
+  const resultados = document.getElementById('busca-resultados');
+  if (!input || !resultados) return;
+
+  input.addEventListener('input', () => {
+    clearTimeout(timeoutBusca);
+    const q = input.value.trim();
+    if (!q) { resultados.innerHTML = ''; return; }
+    timeoutBusca = setTimeout(() => executarBusca(q), 250);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.busca-container')) resultados.innerHTML = '';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = ''; resultados.innerHTML = ''; input.blur();
+    }
+  });
+}
+
+async function executarBusca(q) {
+  const resultados = document.getElementById('busca-resultados');
+  try {
+    const itens = await api(`/buscar?q=${encodeURIComponent(q)}`);
+    if (!itens.length) {
+      resultados.innerHTML = '<div class="busca-vazio">Nada encontrado por aqui…</div>';
+      return;
+    }
+    resultados.innerHTML = itens.map(item => {
+      let url = item.url;
+      if (!url) {
+        if (item.tipo === 'eixo') url = `/eixo.html?numero=${item.id}`;
+        else url = '/';
+      }
+      return `
+        <a class="busca-item" href="${url}">
+          <span class="busca-item-tipo" data-tipo="${item.tipo}">${item.tipo}</span>
+          ${escapar(item.titulo)}
+        </a>
+      `;
+    }).join('');
+  } catch (e) {
+    resultados.innerHTML = `<div class="busca-vazio">Erro: ${escapar(e.message)}</div>`;
+  }
+}
+
 // ===================================================
 // BOTÕES FLUTUANTES
 // ===================================================
@@ -239,11 +284,8 @@ async function excluirDisciplina(evento) {
     if (!container) return;
     const altura = document.documentElement.scrollHeight;
     const janela = window.innerHeight;
-    if (altura > janela + 200) {
-      container.classList.add('visivel');
-    } else {
-      container.classList.remove('visivel');
-    }
+    if (altura > janela + 200) container.classList.add('visivel');
+    else container.classList.remove('visivel');
   }
 
   function iniciar() {
@@ -276,8 +318,8 @@ async function excluirDisciplina(evento) {
 document.addEventListener('DOMContentLoaded', async () => {
   await verificarSessao();
   await carregarEixo();
+  configurarBusca();
 
-  // --- Login ---
   const dlgLogin = document.getElementById('dialogo-login');
   document.getElementById('abrir-login').addEventListener('click', () => dlgLogin.showModal());
   document.getElementById('cancelar-login').addEventListener('click', () => dlgLogin.close());
@@ -297,7 +339,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- Logout ---
   document.getElementById('sair').addEventListener('click', async () => {
     await api('/logout', { method: 'POST' });
     estaLogada = false;
@@ -305,18 +346,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     mostrarMensagem('Sessão encerrada.');
   });
 
-  // --- Adicionar ---
   const btnAdd = document.getElementById('btn-add-disciplina');
   if (btnAdd) btnAdd.addEventListener('click', abrirEditorNova);
 
-  // --- Editor ---
   document.getElementById('form-editor').addEventListener('submit', salvarEditor);
   document.getElementById('cancelar-editor').addEventListener('click', () => {
     document.getElementById('dialogo-editor').close();
     disciplinaEditandoId = null;
   });
 
-  // --- Menu suspenso ---
   const botaoEixos = document.getElementById('botao-eixos');
   const submenuEixos = document.getElementById('submenu-eixos');
   if (botaoEixos && submenuEixos) {
@@ -334,7 +372,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- Backup ---
   const botaoBackup = document.getElementById('botao-backup');
   if (botaoBackup) {
     botaoBackup.addEventListener('click', async () => {
