@@ -1580,3 +1580,159 @@ textarea {
     flex: 1 1 auto;
   }
 }
+/* ===================================================
+   AJUSTES FINAIS — título centralizado + check em todos os cards
+   =================================================== */
+
+/* Todos os títulos de seção centralizados */
+.titulo-secao {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.titulo-secao h2 {
+  text-align: center;
+}
+
+.titulo-secao p {
+  text-align: center;
+}
+
+/* Filtros de cápsula alinhados centralizados em todas as páginas */
+.filtros-aulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+/* ===================================================
+   CHECK EM CARDS (eixo, disciplina, módulo, tema, aula)
+   =================================================== */
+
+/* Todos os cards que têm check precisam de posicionamento relativo */
+.cartao-eixo,
+.cartao-aula {
+  position: relative;
+}
+
+/* Espaço no topo do card pra o check não encostar no conteúdo */
+.cartao-disciplina,
+.cartao-modulo,
+.cartao-tema {
+  padding-top: 48px;
+}
+
+.cartao-aula {
+  padding-top: 52px;
+}
+
+/* Check do card de eixo (que não tem padding padrão do cartao-eixo) */
+.grade-eixos .cartao-eixo:not(.cartao-disciplina):not(.cartao-modulo):not(.cartao-tema):not(.cartao-aula) {
+  padding-top: 48px;
+}
+
+/* Botão check posicionado no canto superior direito */
+.cartao-eixo .botao-check {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+}
+
+/* Botão de editar/excluir não conflita com o check */
+.cartao-disciplina .cartao-link,
+.cartao-modulo .cartao-link,
+.cartao-tema .cartao-link {
+  position: relative;
+  z-index: 1;
+}
+
+/* Cards concluídos ganham um fundo esverdeado suave + opacidade leve */
+.cartao-eixo.concluida,
+.cartao-disciplina.concluida,
+.cartao-modulo.concluida,
+.cartao-tema.concluida {
+  background: #f3f6ee;
+  border-color: #c8d6bd;
+}
+
+.cartao-eixo.concluida::before,
+.cartao-disciplina.concluida::before,
+.cartao-modulo.concluida::before,
+.cartao-tema.concluida::before {
+  background: var(--verde);
+}
+
+/* Título riscado em concluídos */
+.cartao-disciplina.concluida .cartao-titulo,
+.cartao-modulo.concluida .cartao-titulo,
+.cartao-tema.concluida .cartao-titulo {
+  text-decoration: line-through;
+  text-decoration-color: var(--verde);
+  text-decoration-thickness: 1.5px;
+  color: var(--suave);
+}
+
+.cartao-disciplina.concluida .cartao-numero,
+.cartao-modulo.concluida .cartao-numero,
+.cartao-tema.concluida .cartao-numero {
+  color: var(--verde);
+}
+
+.cartao-disciplina.concluida .botao-check,
+.cartao-modulo.concluida .botao-check,
+.cartao-tema.concluida .botao-check,
+.cartao-eixo.concluida .botao-check {
+  background: var(--verde);
+  border-color: var(--verde);
+  color: #fdf6e9;
+}
+
+/* ===================================================
+   AJUSTES FINAIS EM BIBLIOGRAFIA
+   =================================================== */
+
+.bibliografia-controles {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.bibliografia-controles .filtros-aulas {
+  margin-bottom: 0;
+  justify-content: center;
+}
+
+.busca-local {
+  flex: 0 0 auto;
+  width: min(100%, 400px);
+}
+
+/* ===================================================
+   AJUSTES MOBILE
+   =================================================== */
+
+@media (max-width: 600px) {
+  .cartao-disciplina,
+  .cartao-modulo,
+  .cartao-tema {
+    padding-top: 44px;
+  }
+
+  .cartao-aula {
+    padding-top: 48px;
+  }
+
+  .cartao-eixo .botao-check {
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    font-size: 0.95rem;
+  }
+}
