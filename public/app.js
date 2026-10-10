@@ -1,19 +1,17 @@
 // ===================================================
-// APP.JS — Home
-// Lista os 9 eixos como cartões + barra de busca
+// APP.JS — Home (eixos)
 // ===================================================
 
 const API = '/api';
 
 let ementaAtual = [];
-let estaLogada = false;
+let filtroAtual = 'todos';
 let timeoutBusca = null;
 
 // ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
   const resp = await fetch(API + caminho, {
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
     ...opcoes,
     body: opcoes.body ? JSON.stringify(opcoes.body) : undefined
   });
@@ -40,7 +38,24 @@ function escapar(texto) {
     .replaceAll('"', '&quot;');
 }
 
-// ---------- CARREGAR EMENTA ----------
+// ---------- MÉTRICAS DE UM NÓ ----------
+// Retorna { total, concluidas, todasConcluidas }
+function metricasEixo(eixo) {
+  let total = 0, concluidas = 0;
+  eixo.disciplinas.forEach(d => {
+    d.modulos.forEach(m => {
+      m.temas.forEach(t => {
+        t.aulas.forEach(a => {
+          total++;
+          if (a.concluida) concluidas++;
+        });
+      });
+    });
+  });
+  return { total, concluidas, todasConcluidas: total > 0 && concluidas === total };
+}
+
+// ---------- CARREGAR ----------
 async function carregarEmenta() {
   const container = document.getElementById('eixos');
   container.setAttribute('aria-busy', 'true');
@@ -48,6 +63,7 @@ async function carregarEmenta() {
 
   try {
     ementaAtual = await api('/ementa');
+    atualizarContagens();
     renderizarCartoes();
     preencherSubmenuEixos();
   } catch (e) {
@@ -55,6 +71,22 @@ async function carregarEmenta() {
   } finally {
     container.setAttribute('aria-busy', 'false');
   }
+}
+
+// ---------- CONTAGENS DO FILTRO ----------
+function atualizarContagens() {
+  let total = 0, concluidos = 0;
+  ementaAtual.forEach(e => {
+    const m = metricasEixo(e);
+    if (m.total > 0) {
+      total++;
+      if (m.todasConcluidas) concluidos++;
+    }
+  });
+  const pendentes = total - concluidos;
+  document.querySelector('[data-contagem="todos"]').textContent = total;
+  document.querySelector('[data-contagem="concluidos"]').textContent = concluidos;
+  document.querySelector('[data-contagem="pendentes"]').textContent = pendentes;
 }
 
 // ---------- RENDERIZAR CARTÕES ----------
@@ -65,42 +97,60 @@ function renderizarCartoes() {
     return;
   }
 
-  container.innerHTML = ementaAtual.map(eixo => {
-    let total = 0;
-    let concluidas = 0;
-    eixo.disciplinas.forEach(d => {
-      d.modulos.forEach(m => {
-        m.temas.forEach(t => {
-          t.aulas.forEach(a => {
-            total++;
-            if (a.concluida) concluidas++;
-          });
-        });
-      });
-    });
+  const filtrados = ementaAtual.filter(e => {
+    const m = metricasEixo(e);
+    if (filtroAtual === 'concluidos') return m.total > 0 && m.todasConcluidas;
+    if (filtroAtual === 'pendentes') return m.total === 0 || !m.todasConcluidas;
+    return true;
+  });
 
-    const textoAulas = total === 0
+  if (!filtrados.length) {
+    container.innerHTML = '<p class="vazio">Nada por aqui com esse filtro.</p>';
+    return;
+  }
+
+  container.innerHTML = filtrados.map(eixo => {
+    const m = metricasEixo(eixo);
+    const textoAulas = m.total === 0
       ? 'Nenhuma aula ainda'
-      : `${concluidas}/${total} aulas`;
+      : `${m.concluidas}/${m.total} aulas`;
+
+    const classeConcluida = m.todasConcluidas ? ' concluida' : '';
 
     return `
-      <a class="cartao-eixo" href="/eixo.html?numero=${eixo.numero}">
-        <span class="cartao-numero">Eixo ${eixo.numero}</span>
-        <h3 class="cartao-titulo">${escapar(eixo.titulo)}</h3>
-        <span class="cartao-contagem">${textoAulas}</span>
-      </a>
+      <div class="cartao-eixo${classeConcluida}">
+        <button class="botao-check" data-acao="toggle-concluida" data-numero="${eixo.numero}" type="button"
+                title="${m.todasConcluidas ? 'Desmarcar tudo' : 'Marcar tudo como concluído'}">
+          ${m.todasConcluidas ? '✓' : ''}
+        </button>
+        <a class="cartao-link" href="/eixo.html?numero=${eixo.numero}">
+          <span class="cartao-numero">Eixo ${eixo.numero}</span>
+          <h3 class="cartao-titulo">${escapar(eixo.titulo)}</h3>
+          <span class="cartao-contagem">${textoAulas}</span>
+        </a>
+      </div>
     `;
   }).join('');
+
+  container.querySelectorAll('[data-acao="toggle-concluida"]').forEach(btn =>
+    btn.addEventListener('click', toggleConcluida));
 }
 
-// ---------- SUBMENU DE EIXOS ----------
+// ---------- TOGGLE ----------
+async function toggleConcluida(evento) {
+  const numero = evento.currentTarget.dataset.numero;
+  try {
+    await api(`/eixos/${numero}/concluida`, { method: 'PATCH' });
+    await carregarEmenta();
+  } catch (e) {
+    mostrarMensagem(e.message, 'erro');
+  }
+}
+
+// ---------- SUBMENU ----------
 function preencherSubmenuEixos() {
   const submenu = document.getElementById('submenu-eixos');
   if (!submenu) return;
-  if (!ementaAtual.length) {
-    submenu.innerHTML = '<li><a href="#">Nenhum eixo ainda</a></li>';
-    return;
-  }
   submenu.innerHTML = ementaAtual.map(e => `
     <li>
       <a href="/eixo.html?numero=${e.numero}">
@@ -108,17 +158,6 @@ function preencherSubmenuEixos() {
       </a>
     </li>
   `).join('');
-}
-
-// ---------- LOGIN ----------
-async function verificarSessao() {
-  try {
-    const r = await api('/sessao');
-    estaLogada = r.logada;
-    document.getElementById('abrir-login').hidden = estaLogada;
-    document.getElementById('sair').hidden = !estaLogada;
-    document.getElementById('aviso-edicao').hidden = !estaLogada;
-  } catch {}
 }
 
 // ---------- BUSCA ----------
@@ -130,26 +169,17 @@ function configurarBusca() {
   input.addEventListener('input', () => {
     clearTimeout(timeoutBusca);
     const q = input.value.trim();
-    if (!q) {
-      resultados.innerHTML = '';
-      return;
-    }
+    if (!q) { resultados.innerHTML = ''; return; }
     timeoutBusca = setTimeout(() => executarBusca(q), 250);
   });
 
-  // Fecha ao clicar fora
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.busca-container')) {
-      resultados.innerHTML = '';
-    }
+    if (!e.target.closest('.busca-container')) resultados.innerHTML = '';
   });
 
-  // ESC pra limpar
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      input.value = '';
-      resultados.innerHTML = '';
-      input.blur();
+      input.value = ''; resultados.innerHTML = ''; input.blur();
     }
   });
 }
@@ -163,7 +193,11 @@ async function executarBusca(q) {
       return;
     }
     resultados.innerHTML = itens.map(item => {
-      const url = item.url || `${urlBuscaParaTipo(item.tipo, item.id)}`;
+      let url = item.url;
+      if (!url) {
+        if (item.tipo === 'eixo') url = `/eixo.html?numero=${item.id}`;
+        else url = '/';
+      }
       return `
         <a class="busca-item" href="${url}">
           <span class="busca-item-tipo" data-tipo="${item.tipo}">${item.tipo}</span>
@@ -176,90 +210,72 @@ async function executarBusca(q) {
   }
 }
 
-// Alguns itens vêm sem url do backend (ex: aula), montamos aqui
-function urlBuscaParaTipo(tipo, id) {
-  return tipo === 'eixo'
-    ? `/eixo.html?numero=${id}`
-    : '/';
-}
+// ---------- CABEÇALHO STICKY ----------
+(function ativarCabecalhoSticky() {
+  function atualizar() {
+    const barra = document.getElementById('cabecalho-sticky');
+    if (!barra) return;
+    const h1 = document.querySelector('.cabecalho h1, header h1');
+    const alvo = document.getElementById('cabecalho-sticky-titulo');
+    if (h1 && alvo) alvo.textContent = h1.textContent;
 
-// ===================================================
-// BOTÕES FLUTUANTES
-// ===================================================
-(function ativarBotoesFlutuantes() {
-  function atualizarVisibilidade() {
-    const container = document.querySelector('.botoes-flutuantes');
-    if (!container) return;
-    const altura = document.documentElement.scrollHeight;
-    const janela = window.innerHeight;
-    if (altura > janela + 200) {
-      container.classList.add('visivel');
-    } else {
-      container.classList.remove('visivel');
-    }
+    if (window.scrollY > 180) barra.classList.add('visivel');
+    else barra.classList.remove('visivel');
   }
-
   function iniciar() {
-    const btnTopo = document.getElementById('ir-topo');
-    const btnFundo = document.getElementById('ir-fundo');
-    if (btnTopo) btnTopo.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (btnFundo) btnFundo.onclick = () => window.scrollTo({
-      top: document.documentElement.scrollHeight, behavior: 'smooth'
-    });
-
-    window.addEventListener('scroll', atualizarVisibilidade);
-    window.addEventListener('resize', atualizarVisibilidade);
-    if (window.ResizeObserver) new ResizeObserver(atualizarVisibilidade).observe(document.body);
-    document.addEventListener('toggle', atualizarVisibilidade, true);
-
-    atualizarVisibilidade();
-    [100, 300, 600, 1000, 2000, 3000].forEach(ms => setTimeout(atualizarVisibilidade, ms));
+    window.addEventListener('scroll', atualizar, { passive: true });
+    window.addEventListener('resize', atualizar);
+    [100, 300, 600, 1000, 2000].forEach(ms => setTimeout(atualizar, ms));
+    atualizar();
   }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
+})();
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar);
-  } else {
-    iniciar();
+// ---------- BOTÕES FLUTUANTES ----------
+(function ativarBotoesFlutuantes() {
+  function atualizar() {
+    const c = document.querySelector('.botoes-flutuantes');
+    if (!c) return;
+    const a = document.documentElement.scrollHeight;
+    const j = window.innerHeight;
+    if (a > j + 200) c.classList.add('visivel');
+    else c.classList.remove('visivel');
   }
+  function iniciar() {
+    const t = document.getElementById('ir-topo');
+    const f = document.getElementById('ir-fundo');
+    if (t) t.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (f) f.onclick = () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    window.addEventListener('scroll', atualizar);
+    window.addEventListener('resize', atualizar);
+    if (window.ResizeObserver) new ResizeObserver(atualizar).observe(document.body);
+    document.addEventListener('toggle', atualizar, true);
+    atualizar();
+    [100, 300, 600, 1000, 2000, 3000].forEach(ms => setTimeout(atualizar, ms));
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
 })();
 
 // ===================================================
 // EVENTOS INICIAIS
 // ===================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  await verificarSessao();
   await carregarEmenta();
   configurarBusca();
 
-  // --- Login ---
-  const dlgLogin = document.getElementById('dialogo-login');
-  document.getElementById('abrir-login').addEventListener('click', () => dlgLogin.showModal());
-  document.getElementById('cancelar-login').addEventListener('click', () => dlgLogin.close());
-  document.getElementById('form-login').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const senha = document.getElementById('senha').value;
-    try {
-      await api('/login', { method: 'POST', body: { senha } });
-      estaLogada = true;
-      await verificarSessao();
-      dlgLogin.close();
-      mostrarMensagem('Bem-vinda de volta 🌿');
-    } catch (err) {
-      const el = document.getElementById('erro-login');
-      el.textContent = err.message;
-      el.hidden = false;
-    }
+  document.querySelectorAll('.filtro-capsula').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filtroAtual = btn.dataset.filtro;
+      document.querySelectorAll('.filtro-capsula').forEach(b => {
+        b.classList.toggle('ativo', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      renderizarCartoes();
+    });
   });
 
-  // --- Logout ---
-  document.getElementById('sair').addEventListener('click', async () => {
-    await api('/logout', { method: 'POST' });
-    estaLogada = false;
-    await verificarSessao();
-    mostrarMensagem('Sessão encerrada.');
-  });
-
-  // --- Menu suspenso ---
   const botaoEixos = document.getElementById('botao-eixos');
   const submenuEixos = document.getElementById('submenu-eixos');
   if (botaoEixos && submenuEixos) {
@@ -277,7 +293,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- Backup ---
   const botaoBackup = document.getElementById('botao-backup');
   if (botaoBackup) {
     botaoBackup.addEventListener('click', async () => {

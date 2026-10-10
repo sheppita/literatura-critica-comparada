@@ -35,17 +35,7 @@
         </span>
       </p>
     </div>
-
-    <div class="acoes-cabecalho">
-      <button id="abrir-login" type="button">Entrar para editar</button>
-      <button id="sair" type="button" hidden>Sair da edição</button>
-    </div>
   </header>
-
-  <div class="cabecalho-sticky" id="cabecalho-sticky">
-    <a href="/" id="cabecalho-sticky-titulo">Literatura Crítica e Comparada</a>
-  </div>
-
 
   <nav class="menu-principal" aria-label="Menu principal">
     <ul>
@@ -72,29 +62,28 @@
     <div id="busca-resultados" class="busca-resultados" role="listbox"></div>
   </div>
 
+  <div class="cabecalho-sticky" id="cabecalho-sticky">
+    <span id="cabecalho-sticky-titulo">Carregando…</span>
+  </div>
+
   <main id="conteudo" class="conteudo">
     <div id="mensagem" class="mensagem" role="status" aria-live="polite" hidden></div>
-
-    <p id="aviso-edicao" class="aviso" hidden>
-      Você está na área de edição.
-      Os conteúdos cadastrados poderão ser lidos publicamente.
-    </p>
 
     <section aria-labelledby="titulo-aulas">
       <div class="titulo-secao">
         <h2 id="titulo-aulas">Aulas</h2>
-        <p>Conteúdos, anotações e materiais de estudo.</p>
+        <p>Conteúdos, Anotações e Materiais de Estudo</p>
       </div>
 
-      <div class="filtros-aulas" role="tablist" aria-label="Filtrar aulas" hidden id="filtros-aulas">
-        <button class="filtro-capsula ativo" data-filtro="todas" role="tab" aria-selected="true">
-          Todas <span class="filtro-contagem" data-contagem="todas">0</span>
+      <div class="filtros-aulas" role="tablist" aria-label="Filtrar aulas" id="filtros-aulas">
+        <button class="filtro-capsula ativo" data-filtro="todos" role="tab" aria-selected="true">
+          Todas <span class="filtro-contagem" data-contagem="todos">0</span>
+        </button>
+        <button class="filtro-capsula" data-filtro="concluidos" role="tab" aria-selected="false">
+          Concluídas <span class="filtro-contagem" data-contagem="concluidos">0</span>
         </button>
         <button class="filtro-capsula" data-filtro="pendentes" role="tab" aria-selected="false">
           Pendentes <span class="filtro-contagem" data-contagem="pendentes">0</span>
-        </button>
-        <button class="filtro-capsula" data-filtro="concluidas" role="tab" aria-selected="false">
-          Concluídas <span class="filtro-contagem" data-contagem="concluidas">0</span>
         </button>
       </div>
 
@@ -102,7 +91,7 @@
         <p>Carregando…</p>
       </div>
 
-      <div class="acoes-item" id="acoes-tema" hidden>
+      <div class="acoes-item" id="acoes-tema">
         <button id="btn-add-aula" class="botao-adicionar-grande" type="button">
           + Adicionar aula
         </button>
@@ -128,23 +117,6 @@
       </span>
     </p>
   </footer>
-
-  <dialog id="dialogo-login" aria-labelledby="titulo-login">
-    <form id="form-login">
-      <h2 id="titulo-login">Entrar para editar</h2>
-      <p>A leitura é pública. A senha permite modificar a ementa.</p>
-
-      <label for="senha">Sua senha de edição</label>
-      <input id="senha" name="senha" type="password" autocomplete="current-password" maxlength="1024" required>
-
-      <p id="erro-login" class="erro" role="alert" hidden></p>
-
-      <div class="acoes-formulario">
-        <button id="cancelar-login" type="button">Cancelar</button>
-        <button id="confirmar-login" type="submit">Entrar</button>
-      </div>
-    </form>
-  </dialog>
 
   <dialog id="dialogo-editor" aria-labelledby="titulo-editor">
     <form id="form-editor">

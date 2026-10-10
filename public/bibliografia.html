@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Bibliografia da ementa de Literatura Crítica e Comparada.">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Bibliografia — Literatura Crítica e Comparada</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/style.css">
+  <script src="/bibliografia.js" defer></script>
+</head>
+
+<body>
+  <a class="pular-conteudo" href="#conteudo">Ir para o conteúdo</a>
+
+  <header class="cabecalho">
+    <div>
+      <p class="sobretitulo">Caderno de estudos</p>
+      <h1 id="titulo-pagina">Bibliografia</h1>
+      <p class="apresentacao">
+        Todos os Livros e Textos Usados na Ementa, por Autor
+      </p>
+    </div>
+  </header>
+
+  <nav class="menu-principal" aria-label="Menu principal">
+    <ul>
+      <li><a href="/">Home</a></li>
+
+      <li class="menu-suspenso">
+        <button type="button" aria-haspopup="true" aria-expanded="false" id="botao-eixos">
+          Eixos ▾
+        </button>
+        <ul class="submenu" id="submenu-eixos" hidden></ul>
+      </li>
+
+      <li><a href="/bibliografia.html">Bibliografia</a></li>
+
+      <li><button type="button" id="botao-backup">Backup</button></li>
+    </ul>
+  </nav>
+
+  <div class="busca-container">
+    <span class="busca-icone" aria-hidden="true">🔍</span>
+    <input type="search" id="busca-input" class="busca-input"
+      placeholder="Buscar disciplina, módulo, tema, aula…" autocomplete="off"
+      aria-label="Buscar na ementa">
+    <div id="busca-resultados" class="busca-resultados" role="listbox"></div>
+  </div>
+
+  <div class="cabecalho-sticky" id="cabecalho-sticky">
+    <span id="cabecalho-sticky-titulo">Bibliografia</span>
+  </div>
+
+  <main id="conteudo" class="conteudo">
+    <div id="mensagem" class="mensagem" role="status" aria-live="polite" hidden></div>
+
+    <section aria-labelledby="titulo-livros">
+      <div class="titulo-secao">
+        <h2 id="titulo-livros">Livros</h2>
+        <p id="resumo-bibliografia">Carregando…</p>
+      </div>
+
+      <div class="bibliografia-controles">
+        <div class="filtros-aulas" role="tablist" aria-label="Filtrar livros">
+          <button class="filtro-capsula ativo" data-filtro="todos" role="tab" aria-selected="true">
+            Todos <span class="filtro-contagem" data-contagem="todos">0</span>
+          </button>
+          <button class="filtro-capsula" data-filtro="texto-base" role="tab" aria-selected="false">
+            Texto-base <span class="filtro-contagem" data-contagem="texto-base">0</span>
+          </button>
+          <button class="filtro-capsula" data-filtro="ancora" role="tab" aria-selected="false">
+            Âncora <span class="filtro-contagem" data-contagem="ancora">0</span>
+          </button>
+          <button class="filtro-capsula" data-filtro="repetidos" role="tab" aria-selected="false">
+            Repetidos <span class="filtro-contagem" data-contagem="repetidos">0</span>
+          </button>
+        </div>
+
+        <div class="busca-local">
+          <input type="search" id="busca-local-input" placeholder="Buscar por título ou autor…"
+            autocomplete="off" aria-label="Buscar livros">
+        </div>
+      </div>
+
+      <div id="livros" class="lista-livros-geral" aria-busy="true">
+        <p>Carregando…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <p>Uma ementa viva: leitura, investigação e construção contínua.</p>
+  </footer>
+
+  <div class="botoes-flutuantes" aria-label="Atalhos de navegação">
+    <button id="ir-topo" type="button" title="Ir para o topo" aria-label="Ir para o topo">↑</button>
+    <button id="ir-fundo" type="button" title="Ir para o fundo" aria-label="Ir para o fundo">↓</button>
+  </div>
+</body>
+</html>

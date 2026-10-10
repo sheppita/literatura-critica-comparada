@@ -6,14 +6,13 @@ const API = '/api';
 
 let disciplinaAtual = null;
 let ementaAtual = [];
-let estaLogada = false;
 let moduloEditandoId = null;
+let filtroAtual = 'todos';
 let timeoutBusca = null;
 
 async function api(caminho, opcoes = {}) {
   const resp = await fetch(API + caminho, {
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
     ...opcoes,
     body: opcoes.body ? JSON.stringify(opcoes.body) : undefined
   });
@@ -44,6 +43,17 @@ function pegarId() {
   const params = new URLSearchParams(location.search);
   const id = Number(params.get('id'));
   return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function metricasModulo(mod) {
+  let total = 0, concluidas = 0;
+  mod.temas.forEach(t => {
+    t.aulas.forEach(a => {
+      total++;
+      if (a.concluida) concluidas++;
+    });
+  });
+  return { total, concluidas, todasConcluidas: total > 0 && concluidas === total };
 }
 
 async function carregarDisciplina() {
@@ -77,6 +87,7 @@ async function carregarDisciplina() {
       document.getElementById('link-eixo-rodape-container').hidden = false;
     }
 
+    atualizarContagens();
     renderizarModulos();
     await carregarSubmenuEixos();
   } catch (e) {
@@ -86,6 +97,20 @@ async function carregarDisciplina() {
   }
 }
 
+function atualizarContagens() {
+  let total = 0, concluidos = 0;
+  disciplinaAtual.modulos.forEach(m => {
+    const mm = metricasModulo(m);
+    if (mm.total > 0) {
+      total++;
+      if (mm.todasConcluidas) concluidos++;
+    }
+  });
+  document.querySelector('[data-contagem="todos"]').textContent = total;
+  document.querySelector('[data-contagem="concluidos"]').textContent = concluidos;
+  document.querySelector('[data-contagem="pendentes"]').textContent = total - concluidos;
+}
+
 function renderizarModulos() {
   const container = document.getElementById('modulos');
   if (!disciplinaAtual || !disciplinaAtual.modulos.length) {
@@ -93,32 +118,38 @@ function renderizarModulos() {
     return;
   }
 
-  container.innerHTML = disciplinaAtual.modulos.map(mod => {
-    let total = 0, concluidas = 0;
-    mod.temas.forEach(t => {
-      t.aulas.forEach(a => {
-        total++;
-        if (a.concluida) concluidas++;
-      });
-    });
+  const filtrados = disciplinaAtual.modulos.filter(m => {
+    const mm = metricasModulo(m);
+    if (filtroAtual === 'concluidos') return mm.total > 0 && mm.todasConcluidas;
+    if (filtroAtual === 'pendentes') return mm.total === 0 || !mm.todasConcluidas;
+    return true;
+  });
 
-    const textoAulas = total === 0
-      ? 'Nenhuma aula ainda'
-      : `${concluidas}/${total} aulas`;
+  if (!filtrados.length) {
+    container.innerHTML = '<p class="vazio">Nada por aqui com esse filtro.</p>';
+    return;
+  }
+
+  container.innerHTML = filtrados.map(mod => {
+    const mm = metricasModulo(mod);
+    const textoAulas = mm.total === 0 ? 'Nenhuma aula ainda' : `${mm.concluidas}/${mm.total} aulas`;
+    const classeConcluida = mm.todasConcluidas ? ' concluida' : '';
 
     return `
-      <div class="cartao-eixo cartao-modulo">
+      <div class="cartao-eixo cartao-modulo${classeConcluida}">
+        <button class="botao-check" data-acao="toggle-concluida" data-id="${mod.id}" type="button"
+                title="${mm.todasConcluidas ? 'Desmarcar tudo' : 'Marcar tudo como concluído'}">
+          ${mm.todasConcluidas ? '✓' : ''}
+        </button>
         <a class="cartao-link" href="/modulo.html?id=${mod.id}">
           <span class="cartao-numero">Módulo</span>
           <h3 class="cartao-titulo">${escapar(mod.titulo)}</h3>
           <span class="cartao-contagem">${textoAulas}</span>
         </a>
-        ${estaLogada ? `
-          <div class="cartao-acoes">
-            <button class="botao-editar" data-acao="editar-modulo" data-id="${mod.id}" type="button">Editar</button>
-            <button class="botao-excluir" data-acao="excluir-modulo" data-id="${mod.id}" type="button">Excluir</button>
-          </div>
-        ` : ''}
+        <div class="cartao-acoes">
+          <button class="botao-editar" data-acao="editar-modulo" data-id="${mod.id}" type="button">Editar</button>
+          <button class="botao-excluir" data-acao="excluir-modulo" data-id="${mod.id}" type="button">Excluir</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -127,6 +158,18 @@ function renderizarModulos() {
     btn.addEventListener('click', abrirEditorEdicao));
   container.querySelectorAll('[data-acao="excluir-modulo"]').forEach(btn =>
     btn.addEventListener('click', excluirModulo));
+  container.querySelectorAll('[data-acao="toggle-concluida"]').forEach(btn =>
+    btn.addEventListener('click', toggleConcluida));
+}
+
+async function toggleConcluida(evento) {
+  const id = evento.currentTarget.dataset.id;
+  try {
+    await api(`/modulos/${id}/concluida`, { method: 'PATCH' });
+    await carregarDisciplina();
+  } catch (e) {
+    mostrarMensagem(e.message, 'erro');
+  }
 }
 
 async function carregarSubmenuEixos() {
@@ -144,18 +187,6 @@ async function carregarSubmenuEixos() {
   } catch {}
 }
 
-async function verificarSessao() {
-  try {
-    const r = await api('/sessao');
-    estaLogada = r.logada;
-    document.getElementById('abrir-login').hidden = estaLogada;
-    document.getElementById('sair').hidden = !estaLogada;
-    document.getElementById('aviso-edicao').hidden = !estaLogada;
-    document.getElementById('acoes-disciplina').hidden = !estaLogada;
-    if (disciplinaAtual) renderizarModulos();
-  } catch {}
-}
-
 function abrirEditorNova() {
   moduloEditandoId = null;
   const dialog = document.getElementById('dialogo-editor');
@@ -170,30 +201,25 @@ function abrirEditorEdicao(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   const mod = disciplinaAtual.modulos.find(m => m.id === id);
   if (!mod) return;
-
   moduloEditandoId = id;
   const dialog = document.getElementById('dialogo-editor');
   const form = document.getElementById('form-editor');
   form.reset();
   document.getElementById('titulo-editor').textContent = 'Editar módulo';
   document.getElementById('erro-editor').hidden = true;
-
   form.titulo.value = mod.titulo || '';
   form.descricao.value = mod.descricao || '';
-
   dialog.showModal();
 }
 
 async function salvarEditor(evento) {
   evento.preventDefault();
   if (!disciplinaAtual) return;
-
   const form = evento.target;
   const dados = {
     titulo: form.titulo.value.trim(),
     descricao: form.descricao?.value.trim() || null
   };
-
   try {
     if (moduloEditandoId) {
       await api(`/modulos/${moduloEditandoId}`, { method: 'PUT', body: dados });
@@ -227,7 +253,6 @@ async function excluirModulo(evento) {
 async function excluirDisciplina() {
   if (!disciplinaAtual) return;
   if (!confirm('Excluir essa disciplina? Apaga módulos, temas e aulas dentro. Não tem volta.')) return;
-
   try {
     await api(`/disciplinas/${disciplinaAtual.id}`, { method: 'DELETE' });
     mostrarMensagem('Disciplina excluída. Voltando...');
@@ -243,7 +268,6 @@ async function excluirDisciplina() {
   }
 }
 
-// ---------- BUSCA ----------
 function configurarBusca() {
   const input = document.getElementById('busca-input');
   const resultados = document.getElementById('busca-resultados');
@@ -293,112 +317,64 @@ async function executarBusca(q) {
   }
 }
 
-// ===================================================
-// CABEÇALHO STICKY FINO
-// ===================================================
 (function ativarCabecalhoSticky() {
   function atualizar() {
     const barra = document.getElementById('cabecalho-sticky');
     if (!barra) return;
-
     const h1 = document.querySelector('.cabecalho h1, header h1');
     const alvo = document.getElementById('cabecalho-sticky-titulo');
-    if (h1 && alvo) {
-      alvo.textContent = h1.textContent;
-    }
-
-    if (window.scrollY > 180) {
-      barra.classList.add('visivel');
-    } else {
-      barra.classList.remove('visivel');
-    }
+    if (h1 && alvo) alvo.textContent = h1.textContent;
+    if (window.scrollY > 180) barra.classList.add('visivel');
+    else barra.classList.remove('visivel');
   }
-
   function iniciar() {
     window.addEventListener('scroll', atualizar, { passive: true });
     window.addEventListener('resize', atualizar);
     [100, 300, 600, 1000, 2000].forEach(ms => setTimeout(atualizar, ms));
     atualizar();
   }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar);
-  } else {
-    iniciar();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
 })();
 
-// ===================================================
-// BOTÕES FLUTUANTES
-// ===================================================
 (function ativarBotoesFlutuantes() {
-  function atualizarVisibilidade() {
-    const container = document.querySelector('.botoes-flutuantes');
-    if (!container) return;
-    const altura = document.documentElement.scrollHeight;
-    const janela = window.innerHeight;
-    if (altura > janela + 200) container.classList.add('visivel');
-    else container.classList.remove('visivel');
+  function atualizar() {
+    const c = document.querySelector('.botoes-flutuantes');
+    if (!c) return;
+    const a = document.documentElement.scrollHeight;
+    const j = window.innerHeight;
+    if (a > j + 200) c.classList.add('visivel');
+    else c.classList.remove('visivel');
   }
-
   function iniciar() {
-    const btnTopo = document.getElementById('ir-topo');
-    const btnFundo = document.getElementById('ir-fundo');
-    if (btnTopo) btnTopo.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (btnFundo) btnFundo.onclick = () => window.scrollTo({
-      top: document.documentElement.scrollHeight, behavior: 'smooth'
-    });
-
-    window.addEventListener('scroll', atualizarVisibilidade);
-    window.addEventListener('resize', atualizarVisibilidade);
-    if (window.ResizeObserver) new ResizeObserver(atualizarVisibilidade).observe(document.body);
-    document.addEventListener('toggle', atualizarVisibilidade, true);
-
-    atualizarVisibilidade();
-    [100, 300, 600, 1000, 2000, 3000].forEach(ms => setTimeout(atualizarVisibilidade, ms));
+    const t = document.getElementById('ir-topo');
+    const f = document.getElementById('ir-fundo');
+    if (t) t.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (f) f.onclick = () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    window.addEventListener('scroll', atualizar);
+    window.addEventListener('resize', atualizar);
+    if (window.ResizeObserver) new ResizeObserver(atualizar).observe(document.body);
+    document.addEventListener('toggle', atualizar, true);
+    atualizar();
+    [100, 300, 600, 1000, 2000, 3000].forEach(ms => setTimeout(atualizar, ms));
   }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar);
-  } else {
-    iniciar();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
 })();
 
-// ===================================================
-// EVENTOS INICIAIS
-// ===================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  await verificarSessao();
   await carregarDisciplina();
   configurarBusca();
 
-  const dlgLogin = document.getElementById('dialogo-login');
-  document.getElementById('abrir-login').addEventListener('click', () => dlgLogin.showModal());
-  document.getElementById('cancelar-login').addEventListener('click', () => dlgLogin.close());
-  document.getElementById('form-login').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const senha = document.getElementById('senha').value;
-    try {
-      await api('/login', { method: 'POST', body: { senha } });
-      estaLogada = true;
-      await verificarSessao();
-      dlgLogin.close();
-      await carregarDisciplina();
-      mostrarMensagem('Bem-vinda de volta 🌿');
-    } catch (err) {
-      const el = document.getElementById('erro-login');
-      el.textContent = err.message;
-      el.hidden = false;
-    }
-  });
-
-  document.getElementById('sair').addEventListener('click', async () => {
-    await api('/logout', { method: 'POST' });
-    estaLogada = false;
-    await verificarSessao();
-    await carregarDisciplina();
-    mostrarMensagem('Sessão encerrada.');
+  document.querySelectorAll('.filtro-capsula').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filtroAtual = btn.dataset.filtro;
+      document.querySelectorAll('.filtro-capsula').forEach(b => {
+        b.classList.toggle('ativo', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      renderizarModulos();
+    });
   });
 
   document.getElementById('btn-add-modulo').addEventListener('click', abrirEditorNova);

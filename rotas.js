@@ -3,12 +3,6 @@ import pool from './db.js';
 
 const router = express.Router();
 
-// ---------- MIDDLEWARE DE LOGIN ----------
-function exigirLogin(req, res, next) {
-  if (req.cookies?.admin === process.env.SENHA_ADMIN) return next();
-  return res.status(401).json({ erro: 'Faça login para continuar.' });
-}
-
 // ---------- UTIL: normalizar texto pra comparação ----------
 function normalizar(texto) {
   if (!texto) return '';
@@ -21,8 +15,6 @@ function normalizar(texto) {
 }
 
 // ---------- UTIL: ordenação "natural" ----------
-// Se o título começa com número ("3 - Foo", "12. Bar"), ordena pelo número.
-// Senão, ordena alfabeticamente (ignorando acentos e maiúsculas).
 function ordenarPorTitulo(a, b) {
   const extrairNumero = (t) => {
     const match = String(t || '').match(/^\s*(\d+)/);
@@ -32,44 +24,18 @@ function ordenarPorTitulo(a, b) {
   const numA = extrairNumero(a.titulo);
   const numB = extrairNumero(b.titulo);
 
-  // Se ambos começam com número, ordena por número
   if (numA !== null && numB !== null) {
     if (numA !== numB) return numA - numB;
     return normalizar(a.titulo).localeCompare(normalizar(b.titulo));
   }
-
-  // Se só um começa com número, o com número vem primeiro
   if (numA !== null) return -1;
   if (numB !== null) return 1;
-
-  // Senão, alfabético
   return normalizar(a.titulo).localeCompare(normalizar(b.titulo));
 }
 
-// ---------- LOGIN ----------
-router.post('/login', (req, res) => {
-  const { senha } = req.body;
-  if (senha === process.env.SENHA_ADMIN) {
-    res.cookie('admin', senha, {
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 30
-    });
-    return res.json({ ok: true });
-  }
-  res.status(401).json({ erro: 'Senha incorreta.' });
-});
-
-router.post('/logout', (req, res) => {
-  res.clearCookie('admin');
-  res.json({ ok: true });
-});
-
-router.get('/sessao', (req, res) => {
-  res.json({ logada: req.cookies?.admin === process.env.SENHA_ADMIN });
-});
-
-// ---------- EMENTA COMPLETA ----------
+// ===================================================
+// EMENTA COMPLETA
+// ===================================================
 router.get('/ementa', async (req, res) => {
   try {
     const eixos = (await pool.query('SELECT * FROM eixos ORDER BY numero')).rows;
@@ -78,7 +44,6 @@ router.get('/ementa', async (req, res) => {
     const temas = (await pool.query('SELECT * FROM temas')).rows;
     const aulas = (await pool.query('SELECT * FROM aulas')).rows;
 
-    // Anexa livros às aulas
     const aulasIds = aulas.map(a => a.id);
     let livros = [];
     if (aulasIds.length) {
@@ -123,8 +88,9 @@ router.get('/ementa', async (req, res) => {
   }
 });
 
-// ---------- ITENS INDIVIDUAIS ----------
-
+// ===================================================
+// ITENS INDIVIDUAIS
+// ===================================================
 router.get('/disciplinas/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -322,7 +288,7 @@ router.get('/buscar', async (req, res) => {
 // ===================================================
 // CADASTRO — DISCIPLINAS
 // ===================================================
-router.post('/disciplinas', exigirLogin, async (req, res) => {
+router.post('/disciplinas', async (req, res) => {
   const { eixo_id, titulo, descricao } = req.body;
   const { rows } = await pool.query(
     'INSERT INTO disciplinas (eixo_id, titulo, descricao) VALUES ($1,$2,$3) RETURNING *',
@@ -331,7 +297,7 @@ router.post('/disciplinas', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.put('/disciplinas/:id', exigirLogin, async (req, res) => {
+router.put('/disciplinas/:id', async (req, res) => {
   const { titulo, descricao } = req.body;
   const { rows } = await pool.query(
     'UPDATE disciplinas SET titulo=$1, descricao=$2 WHERE id=$3 RETURNING *',
@@ -341,13 +307,13 @@ router.put('/disciplinas/:id', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.delete('/disciplinas/:id', exigirLogin, async (req, res) => {
+router.delete('/disciplinas/:id', async (req, res) => {
   await pool.query('DELETE FROM disciplinas WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
 // ---------- MÓDULOS ----------
-router.post('/modulos', exigirLogin, async (req, res) => {
+router.post('/modulos', async (req, res) => {
   const { disciplina_id, titulo, descricao } = req.body;
   const { rows } = await pool.query(
     'INSERT INTO modulos (disciplina_id, titulo, descricao) VALUES ($1,$2,$3) RETURNING *',
@@ -356,7 +322,7 @@ router.post('/modulos', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.put('/modulos/:id', exigirLogin, async (req, res) => {
+router.put('/modulos/:id', async (req, res) => {
   const { titulo, descricao } = req.body;
   const { rows } = await pool.query(
     'UPDATE modulos SET titulo=$1, descricao=$2 WHERE id=$3 RETURNING *',
@@ -366,13 +332,13 @@ router.put('/modulos/:id', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.delete('/modulos/:id', exigirLogin, async (req, res) => {
+router.delete('/modulos/:id', async (req, res) => {
   await pool.query('DELETE FROM modulos WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
 // ---------- TEMAS ----------
-router.post('/temas', exigirLogin, async (req, res) => {
+router.post('/temas', async (req, res) => {
   const { modulo_id, titulo, descricao } = req.body;
   const { rows } = await pool.query(
     'INSERT INTO temas (modulo_id, titulo, descricao) VALUES ($1,$2,$3) RETURNING *',
@@ -381,7 +347,7 @@ router.post('/temas', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.put('/temas/:id', exigirLogin, async (req, res) => {
+router.put('/temas/:id', async (req, res) => {
   const { titulo, descricao } = req.body;
   const { rows } = await pool.query(
     'UPDATE temas SET titulo=$1, descricao=$2 WHERE id=$3 RETURNING *',
@@ -391,13 +357,13 @@ router.put('/temas/:id', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.delete('/temas/:id', exigirLogin, async (req, res) => {
+router.delete('/temas/:id', async (req, res) => {
   await pool.query('DELETE FROM temas WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
 // ---------- AULAS ----------
-router.post('/aulas', exigirLogin, async (req, res) => {
+router.post('/aulas', async (req, res) => {
   const { tema_id, titulo, conteudo } = req.body;
   const { rows } = await pool.query(
     'INSERT INTO aulas (tema_id, titulo, conteudo) VALUES ($1,$2,$3) RETURNING *',
@@ -406,7 +372,7 @@ router.post('/aulas', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.put('/aulas/:id', exigirLogin, async (req, res) => {
+router.put('/aulas/:id', async (req, res) => {
   const { titulo, conteudo } = req.body;
   const { rows } = await pool.query(
     'UPDATE aulas SET titulo=$1, conteudo=$2 WHERE id=$3 RETURNING *',
@@ -415,7 +381,8 @@ router.put('/aulas/:id', exigirLogin, async (req, res) => {
   res.json(rows[0]);
 });
 
-router.patch('/aulas/:id/concluida', exigirLogin, async (req, res) => {
+// Alternar concluída de UMA aula
+router.patch('/aulas/:id/concluida', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE aulas SET concluida = NOT concluida WHERE id = $1 RETURNING *`,
@@ -429,15 +396,141 @@ router.patch('/aulas/:id/concluida', exigirLogin, async (req, res) => {
   }
 });
 
-router.delete('/aulas/:id', exigirLogin, async (req, res) => {
+router.delete('/aulas/:id', async (req, res) => {
   await pool.query('DELETE FROM aulas WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
 // ===================================================
-// LIVROS / BIBLIOGRAFIA
+// MARCAR/desmarcar TEMA, MÓDULO, DISCIPLINA, EIXO
+// (marca/desmarca TODAS as aulas dentro)
 // ===================================================
 
+// Tema → todas as aulas do tema
+router.patch('/temas/:id/concluida', async (req, res) => {
+  try {
+    const temaId = Number(req.params.id);
+    const { rows: aulas } = await pool.query(
+      'SELECT id, concluida FROM aulas WHERE tema_id = $1', [temaId]
+    );
+    if (!aulas.length) return res.status(404).json({ erro: 'Tema sem aulas.' });
+
+    // Se TODAS já estão concluídas → desmarca. Senão → marca todas.
+    const todasConcluidas = aulas.every(a => a.concluida);
+    const novoValor = !todasConcluidas;
+
+    await pool.query(
+      'UPDATE aulas SET concluida = $1 WHERE tema_id = $2',
+      [novoValor, temaId]
+    );
+    res.json({ ok: true, concluida: novoValor });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao atualizar tema.' });
+  }
+});
+
+// Módulo → todas as aulas dos temas dele
+router.patch('/modulos/:id/concluida', async (req, res) => {
+  try {
+    const modId = Number(req.params.id);
+    const { rows: aulas } = await pool.query(
+      `SELECT a.id, a.concluida
+       FROM aulas a
+       JOIN temas t ON t.id = a.tema_id
+       WHERE t.modulo_id = $1`,
+      [modId]
+    );
+    if (!aulas.length) return res.status(404).json({ erro: 'Módulo sem aulas.' });
+
+    const todasConcluidas = aulas.every(a => a.concluida);
+    const novoValor = !todasConcluidas;
+
+    await pool.query(
+      `UPDATE aulas SET concluida = $1
+       WHERE tema_id IN (SELECT id FROM temas WHERE modulo_id = $2)`,
+      [novoValor, modId]
+    );
+    res.json({ ok: true, concluida: novoValor });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao atualizar módulo.' });
+  }
+});
+
+// Disciplina → todas as aulas dos módulos dela
+router.patch('/disciplinas/:id/concluida', async (req, res) => {
+  try {
+    const discId = Number(req.params.id);
+    const { rows: aulas } = await pool.query(
+      `SELECT a.id, a.concluida
+       FROM aulas a
+       JOIN temas t   ON t.id = a.tema_id
+       JOIN modulos m ON m.id = t.modulo_id
+       WHERE m.disciplina_id = $1`,
+      [discId]
+    );
+    if (!aulas.length) return res.status(404).json({ erro: 'Disciplina sem aulas.' });
+
+    const todasConcluidas = aulas.every(a => a.concluida);
+    const novoValor = !todasConcluidas;
+
+    await pool.query(
+      `UPDATE aulas SET concluida = $1
+       WHERE tema_id IN (
+         SELECT t.id FROM temas t
+         JOIN modulos m ON m.id = t.modulo_id
+         WHERE m.disciplina_id = $2
+       )`,
+      [novoValor, discId]
+    );
+    res.json({ ok: true, concluida: novoValor });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao atualizar disciplina.' });
+  }
+});
+
+// Eixo → todas as aulas das disciplinas dele
+router.patch('/eixos/:numero/concluida', async (req, res) => {
+  try {
+    const numero = Number(req.params.numero);
+    const { rows: aulas } = await pool.query(
+      `SELECT a.id, a.concluida
+       FROM aulas a
+       JOIN temas t       ON t.id = a.tema_id
+       JOIN modulos m     ON m.id = t.modulo_id
+       JOIN disciplinas d ON d.id = m.disciplina_id
+       JOIN eixos e       ON e.id = d.eixo_id
+       WHERE e.numero = $1`,
+      [numero]
+    );
+    if (!aulas.length) return res.status(404).json({ erro: 'Eixo sem aulas.' });
+
+    const todasConcluidas = aulas.every(a => a.concluida);
+    const novoValor = !todasConcluidas;
+
+    await pool.query(
+      `UPDATE aulas SET concluida = $1
+       WHERE tema_id IN (
+         SELECT t.id FROM temas t
+         JOIN modulos m     ON m.id = t.modulo_id
+         JOIN disciplinas d ON d.id = m.disciplina_id
+         JOIN eixos e       ON e.id = d.eixo_id
+         WHERE e.numero = $2
+       )`,
+      [novoValor, numero]
+    );
+    res.json({ ok: true, concluida: novoValor });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ erro: 'Erro ao atualizar eixo.' });
+  }
+});
+
+// ===================================================
+// LIVROS / BIBLIOGRAFIA
+// ===================================================
 router.get('/livros', async (req, res) => {
   try {
     const sql = `
@@ -522,7 +615,7 @@ router.get('/aulas/:id/livros', async (req, res) => {
   }
 });
 
-router.post('/livros', exigirLogin, async (req, res) => {
+router.post('/livros', async (req, res) => {
   const { aula_id, titulo, autor, capitulo, descricao_capitulo, tipo, observacoes } = req.body;
   if (!aula_id || !titulo || !tipo) {
     return res.status(400).json({ erro: 'Aula, título e tipo são obrigatórios.' });
@@ -540,7 +633,7 @@ router.post('/livros', exigirLogin, async (req, res) => {
   }
 });
 
-router.put('/livros/:id', exigirLogin, async (req, res) => {
+router.put('/livros/:id', async (req, res) => {
   const { titulo, autor, capitulo, descricao_capitulo, tipo, observacoes } = req.body;
   try {
     const { rows } = await pool.query(
@@ -557,7 +650,7 @@ router.put('/livros/:id', exigirLogin, async (req, res) => {
   }
 });
 
-router.delete('/livros/:id', exigirLogin, async (req, res) => {
+router.delete('/livros/:id', async (req, res) => {
   await pool.query('DELETE FROM livros WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });

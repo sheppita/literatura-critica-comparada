@@ -1,20 +1,18 @@
 // ===================================================
-// EIXO.JS — Página individual de um eixo
+// EIXO.JS — Página de um eixo
 // ===================================================
 
 const API = '/api';
 
 let ementaAtual = [];
 let eixoAtual = null;
-let estaLogada = false;
 let disciplinaEditandoId = null;
+let filtroAtual = 'todos';
 let timeoutBusca = null;
 
-// ---------- HELPERS ----------
 async function api(caminho, opcoes = {}) {
   const resp = await fetch(API + caminho, {
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
     ...opcoes,
     body: opcoes.body ? JSON.stringify(opcoes.body) : undefined
   });
@@ -47,7 +45,20 @@ function pegarNumeroDoEixo() {
   return Number.isInteger(num) && num >= 1 && num <= 9 ? num : null;
 }
 
-// ---------- CARREGAR EIXO ----------
+function metricasDisciplina(disc) {
+  let total = 0, concluidas = 0;
+  disc.modulos.forEach(m => {
+    m.temas.forEach(t => {
+      t.aulas.forEach(a => {
+        total++;
+        if (a.concluida) concluidas++;
+      });
+    });
+  });
+  return { total, concluidas, todasConcluidas: total > 0 && concluidas === total };
+}
+
+// ---------- CARREGAR ----------
 async function carregarEixo() {
   const numero = pegarNumeroDoEixo();
   const container = document.getElementById('disciplinas');
@@ -72,6 +83,7 @@ async function carregarEixo() {
     document.getElementById('titulo-eixo').textContent =
       `Eixo ${eixoAtual.numero} — ${eixoAtual.titulo}`;
 
+    atualizarContagens();
     renderizarDisciplinas();
     preencherSubmenuEixos();
   } catch (e) {
@@ -81,6 +93,20 @@ async function carregarEixo() {
   }
 }
 
+function atualizarContagens() {
+  let total = 0, concluidos = 0;
+  eixoAtual.disciplinas.forEach(d => {
+    const m = metricasDisciplina(d);
+    if (m.total > 0) {
+      total++;
+      if (m.todasConcluidas) concluidos++;
+    }
+  });
+  document.querySelector('[data-contagem="todos"]').textContent = total;
+  document.querySelector('[data-contagem="concluidos"]').textContent = concluidos;
+  document.querySelector('[data-contagem="pendentes"]').textContent = total - concluidos;
+}
+
 function renderizarDisciplinas() {
   const container = document.getElementById('disciplinas');
   if (!eixoAtual || !eixoAtual.disciplinas.length) {
@@ -88,34 +114,38 @@ function renderizarDisciplinas() {
     return;
   }
 
-  container.innerHTML = eixoAtual.disciplinas.map(disc => {
-    let total = 0, concluidas = 0;
-    disc.modulos.forEach(m => {
-      m.temas.forEach(t => {
-        t.aulas.forEach(a => {
-          total++;
-          if (a.concluida) concluidas++;
-        });
-      });
-    });
+  const filtrados = eixoAtual.disciplinas.filter(d => {
+    const m = metricasDisciplina(d);
+    if (filtroAtual === 'concluidos') return m.total > 0 && m.todasConcluidas;
+    if (filtroAtual === 'pendentes') return m.total === 0 || !m.todasConcluidas;
+    return true;
+  });
 
-    const textoAulas = total === 0
-      ? 'Nenhuma aula ainda'
-      : `${concluidas}/${total} aulas`;
+  if (!filtrados.length) {
+    container.innerHTML = '<p class="vazio">Nada por aqui com esse filtro.</p>';
+    return;
+  }
+
+  container.innerHTML = filtrados.map(disc => {
+    const m = metricasDisciplina(disc);
+    const textoAulas = m.total === 0 ? 'Nenhuma aula ainda' : `${m.concluidas}/${m.total} aulas`;
+    const classeConcluida = m.todasConcluidas ? ' concluida' : '';
 
     return `
-      <div class="cartao-eixo cartao-disciplina">
+      <div class="cartao-eixo cartao-disciplina${classeConcluida}">
+        <button class="botao-check" data-acao="toggle-concluida" data-id="${disc.id}" type="button"
+                title="${m.todasConcluidas ? 'Desmarcar tudo' : 'Marcar tudo como concluído'}">
+          ${m.todasConcluidas ? '✓' : ''}
+        </button>
         <a class="cartao-link" href="/disciplina.html?id=${disc.id}">
           <span class="cartao-numero">Disciplina</span>
           <h3 class="cartao-titulo">${escapar(disc.titulo)}</h3>
           <span class="cartao-contagem">${textoAulas}</span>
         </a>
-        ${estaLogada ? `
-          <div class="cartao-acoes">
-            <button class="botao-editar" data-acao="editar-disciplina" data-id="${disc.id}" type="button">Editar</button>
-            <button class="botao-excluir" data-acao="excluir-disciplina" data-id="${disc.id}" type="button">Excluir</button>
-          </div>
-        ` : ''}
+        <div class="cartao-acoes">
+          <button class="botao-editar" data-acao="editar-disciplina" data-id="${disc.id}" type="button">Editar</button>
+          <button class="botao-excluir" data-acao="excluir-disciplina" data-id="${disc.id}" type="button">Excluir</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -124,6 +154,18 @@ function renderizarDisciplinas() {
     btn.addEventListener('click', abrirEditorEdicao));
   container.querySelectorAll('[data-acao="excluir-disciplina"]').forEach(btn =>
     btn.addEventListener('click', excluirDisciplina));
+  container.querySelectorAll('[data-acao="toggle-concluida"]').forEach(btn =>
+    btn.addEventListener('click', toggleConcluida));
+}
+
+async function toggleConcluida(evento) {
+  const id = evento.currentTarget.dataset.id;
+  try {
+    await api(`/disciplinas/${id}/concluida`, { method: 'PATCH' });
+    await carregarEixo();
+  } catch (e) {
+    mostrarMensagem(e.message, 'erro');
+  }
 }
 
 function preencherSubmenuEixos() {
@@ -136,19 +178,6 @@ function preencherSubmenuEixos() {
       </a>
     </li>
   `).join('');
-}
-
-async function verificarSessao() {
-  try {
-    const r = await api('/sessao');
-    estaLogada = r.logada;
-    document.getElementById('abrir-login').hidden = estaLogada;
-    document.getElementById('sair').hidden = !estaLogada;
-    document.getElementById('aviso-edicao').hidden = !estaLogada;
-    const btn = document.getElementById('btn-add-disciplina');
-    if (btn) btn.hidden = !estaLogada;
-    if (eixoAtual) renderizarDisciplinas();
-  } catch {}
 }
 
 // ---------- EDITOR ----------
@@ -166,30 +195,25 @@ function abrirEditorEdicao(evento) {
   const id = Number(evento.currentTarget.dataset.id);
   const disc = eixoAtual.disciplinas.find(d => d.id === id);
   if (!disc) return;
-
   disciplinaEditandoId = id;
   const dialog = document.getElementById('dialogo-editor');
   const form = document.getElementById('form-editor');
   form.reset();
   document.getElementById('titulo-editor').textContent = 'Editar disciplina';
   document.getElementById('erro-editor').hidden = true;
-
   form.titulo.value = disc.titulo || '';
   form.descricao.value = disc.descricao || '';
-
   dialog.showModal();
 }
 
 async function salvarEditor(evento) {
   evento.preventDefault();
   if (!eixoAtual) return;
-
   const form = evento.target;
   const dados = {
     titulo: form.titulo.value.trim(),
     descricao: form.descricao?.value.trim() || null
   };
-
   try {
     if (disciplinaEditandoId) {
       await api(`/disciplinas/${disciplinaEditandoId}`, { method: 'PUT', body: dados });
@@ -270,110 +294,66 @@ async function executarBusca(q) {
   }
 }
 
-// ===================================================
-// CABEÇALHO STICKY FINO
-// ===================================================
+// ---------- STICKY + FLUTUANTES ----------
 (function ativarCabecalhoSticky() {
   function atualizar() {
     const barra = document.getElementById('cabecalho-sticky');
     if (!barra) return;
-
     const h1 = document.querySelector('.cabecalho h1, header h1');
     const alvo = document.getElementById('cabecalho-sticky-titulo');
-    if (h1 && alvo) {
-      alvo.textContent = h1.textContent;
-    }
-
-    if (window.scrollY > 180) {
-      barra.classList.add('visivel');
-    } else {
-      barra.classList.remove('visivel');
-    }
+    if (h1 && alvo) alvo.textContent = h1.textContent;
+    if (window.scrollY > 180) barra.classList.add('visivel');
+    else barra.classList.remove('visivel');
   }
-
   function iniciar() {
     window.addEventListener('scroll', atualizar, { passive: true });
     window.addEventListener('resize', atualizar);
     [100, 300, 600, 1000, 2000].forEach(ms => setTimeout(atualizar, ms));
     atualizar();
   }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar);
-  } else {
-    iniciar();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
 })();
 
-// ===================================================
-// BOTÕES FLUTUANTES
-// ===================================================
 (function ativarBotoesFlutuantes() {
-  function atualizarVisibilidade() {
-    const container = document.querySelector('.botoes-flutuantes');
-    if (!container) return;
-    const altura = document.documentElement.scrollHeight;
-    const janela = window.innerHeight;
-    if (altura > janela + 200) container.classList.add('visivel');
-    else container.classList.remove('visivel');
+  function atualizar() {
+    const c = document.querySelector('.botoes-flutuantes');
+    if (!c) return;
+    const a = document.documentElement.scrollHeight;
+    const j = window.innerHeight;
+    if (a > j + 200) c.classList.add('visivel');
+    else c.classList.remove('visivel');
   }
-
   function iniciar() {
-    const btnTopo = document.getElementById('ir-topo');
-    const btnFundo = document.getElementById('ir-fundo');
-    if (btnTopo) btnTopo.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (btnFundo) btnFundo.onclick = () => window.scrollTo({
-      top: document.documentElement.scrollHeight, behavior: 'smooth'
-    });
-
-    window.addEventListener('scroll', atualizarVisibilidade);
-    window.addEventListener('resize', atualizarVisibilidade);
-    if (window.ResizeObserver) new ResizeObserver(atualizarVisibilidade).observe(document.body);
-    document.addEventListener('toggle', atualizarVisibilidade, true);
-
-    atualizarVisibilidade();
-    [100, 300, 600, 1000, 2000, 3000].forEach(ms => setTimeout(atualizarVisibilidade, ms));
+    const t = document.getElementById('ir-topo');
+    const f = document.getElementById('ir-fundo');
+    if (t) t.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (f) f.onclick = () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    window.addEventListener('scroll', atualizar);
+    window.addEventListener('resize', atualizar);
+    if (window.ResizeObserver) new ResizeObserver(atualizar).observe(document.body);
+    document.addEventListener('toggle', atualizar, true);
+    atualizar();
+    [100, 300, 600, 1000, 2000, 3000].forEach(ms => setTimeout(atualizar, ms));
   }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar);
-  } else {
-    iniciar();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
 })();
 
-// ===================================================
-// EVENTOS INICIAIS
-// ===================================================
+// ---------- EVENTOS INICIAIS ----------
 document.addEventListener('DOMContentLoaded', async () => {
-  await verificarSessao();
   await carregarEixo();
   configurarBusca();
 
-  const dlgLogin = document.getElementById('dialogo-login');
-  document.getElementById('abrir-login').addEventListener('click', () => dlgLogin.showModal());
-  document.getElementById('cancelar-login').addEventListener('click', () => dlgLogin.close());
-  document.getElementById('form-login').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const senha = document.getElementById('senha').value;
-    try {
-      await api('/login', { method: 'POST', body: { senha } });
-      estaLogada = true;
-      await verificarSessao();
-      dlgLogin.close();
-      mostrarMensagem('Bem-vinda de volta 🌿');
-    } catch (err) {
-      const el = document.getElementById('erro-login');
-      el.textContent = err.message;
-      el.hidden = false;
-    }
-  });
-
-  document.getElementById('sair').addEventListener('click', async () => {
-    await api('/logout', { method: 'POST' });
-    estaLogada = false;
-    await verificarSessao();
-    mostrarMensagem('Sessão encerrada.');
+  document.querySelectorAll('.filtro-capsula').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filtroAtual = btn.dataset.filtro;
+      document.querySelectorAll('.filtro-capsula').forEach(b => {
+        b.classList.toggle('ativo', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      renderizarDisciplinas();
+    });
   });
 
   const btnAdd = document.getElementById('btn-add-disciplina');
